@@ -63,7 +63,13 @@ function createBookCard(book) {
 // 4. Відображення списку книг
 function renderBooks(bookArray) {
     const bookList = document.getElementById('bookList');
+    const bookCountElement = document.getElementById('bookCount'); // Отримуємо елемент лічильника
+    
     bookList.innerHTML = ''; // Очищаємо контейнер перед додаванням
+
+    // ОНОВЛЕННЯ ЛІЧИЛЬНИКА
+    const totalCount = books.length; // Використовуємо загальну кількість книг, незалежно від результатів пошуку
+    bookCountElement.textContent = `Усього книг: ${totalCount}`;
 
     if (bookArray.length === 0) {
         bookList.innerHTML = '<p style="text-align: center; width: 100%;">Список книг порожній або нічого не знайдено.</p>';
@@ -156,4 +162,5 @@ function deleteBook(id) {
         
         alert(`Книга "${bookToDelete.title}" видалена.`);
     }
+
 }
