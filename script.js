@@ -83,25 +83,31 @@ function renderBooks(bookArray) {
 }
 
 
-// 5. Обробка форми додавання книги
+// 5. ОНОВЛЕНА ФУНКЦІЯ: Обробка форми додавання книги
 document.getElementById('addBookForm').addEventListener('submit', function(e) {
     e.preventDefault(); // Запобігаємо стандартній відправці форми
 
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
-    const imageURL = document.getElementById('imageURL').value;
+    let imageURL = document.getElementById('imageURL').value; // Використовуємо let, щоб мати можливість змінити
+
+    // НОВА ЛОГІКА: Перевірка, чи введено URL зображення
+    if (!imageURL) {
+        // Якщо поле порожнє, встановлюємо стандартне зображення-заглушку
+        imageURL = 'https://via.placeholder.com/180x200?text=Обкладинка+відсутня'; 
+    }
     
     // Створення нового об'єкта книги
     const newBook = {
-        id: Date.now(), // Унікальний ID на основі часу
+        id: Date.now(),
         title: title,
         author: author,
-        imageURL: imageURL
+        imageURL: imageURL // Буде або введене користувачем, або заглушка
     };
     
-    books.push(newBook); // Додаємо нову книгу до масиву
-    saveBooks();        // Зберігаємо оновлений масив
-    renderBooks(books); // Оновлюємо відображення на сторінці
+    books.push(newBook);
+    saveBooks();
+    renderBooks(books);
     
     // Очищення форми та закриття модального вікна
     this.reset();
@@ -164,3 +170,4 @@ function deleteBook(id) {
     }
 
 }
+
