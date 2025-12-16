@@ -1,0 +1,230 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+/* Заголовок та кнопка - ОНОВЛЕНО на ФІОЛЕТОВИЙ */
+header {
+    background-color: #673AB7; /* Приємний фіолетовий колір */
+    color: white;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    font-size: 1.5em; /* Зменшення розміру тексту заголовка */
+    margin: 0;
+}
+
+header button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #512DA8; /* Трохи темніший фіолетовий для кнопки */
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+/* Пошук */
+.search-container {
+    padding: 20px;
+    text-align: center;
+    background-color: #e2e2e2;
+}
+
+#searchInput {
+    padding: 10px;
+    width: 80%;
+    max-width: 600px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    font-size: 16px;
+    outline: none;
+    text-align: center;
+}
+
+/* Контейнер для списку книг */
+.book-list-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 20px;
+    gap: 20px;
+}
+
+/* Картка книги */
+.book-card {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    width: 180px; 
+    padding: 10px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    position: relative;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+}
+
+.book-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 5px;
+    margin-bottom: 8px;
+}
+
+.book-card h3 {
+    font-size: 1em;
+    margin: 5px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.book-card p {
+    font-size: 0.85em;
+    color: #555;
+    margin: 0;
+}
+
+/* --- Кнопка видалення --- */
+.delete-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: #d9534f;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 25px;
+    text-align: center;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+    background-color: #c9302c;
+}
+
+/* --- АДАПТИВНІСТЬ ДЛЯ МОБІЛЬНИХ --- */
+@media screen and (max-width: 768px) {
+    .book-card {
+        width: 45%;
+        min-width: 140px;
+    }
+    
+    .book-card img {
+        height: 180px;
+    }
+
+    /* Додаємо стиль для мобільного заголовка */
+    header h1 {
+        font-size: 1.1em; 
+    }
+
+    @media screen and (max-width: 400px) {
+        .book-card {
+            width: 80%;
+        }
+    }
+
+    header {
+        padding: 10px;
+    }
+    
+    header button {
+        padding: 8px 15px;
+        font-size: 12px;
+    }
+
+    .search-container {
+        padding: 15px;
+    }
+
+    #searchInput {
+        width: 90%;
+    }
+}
+
+
+/* --- Модальне Вікно (Спливаюче Вікно) --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.modal-content label,
+.modal-content input,
+.modal-content button {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.modal-content input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.modal-content button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 20px;
+}
+
+.modal-content button:hover {
+    background-color: #45a049;
+}

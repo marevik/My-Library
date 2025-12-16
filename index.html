@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Домашня Бібліотека</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>Моя Домашня Бібліотека</h1>
+        <button id="openModalBtn">📚 Додати Книгу</button>
+    </header>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Пошук за назвою або автором..." onkeyup="filterBooks()">
+    </div>
+
+    <div class="book-list-container" id="bookList">
+        </div>
+
+    <div id="addBookModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>Додати нову книгу</h2>
+            
+            <form id="addBookForm">
+                <label for="title">Назва Книги:</label>
+                <input type="text" id="title" required><br>
+                
+                <label for="author">Автор:</label>
+                <input type="text" id="author" required><br>
+                
+                <label for="imageURL">Посилання на Фото (URL):</label>
+                <input type="url" id="imageURL" placeholder="https://example.com/photo.jpg" required><br>
+                
+                <button type="submit">Зберегти Книгу</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
