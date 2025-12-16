@@ -15,6 +15,15 @@ header {
     align-items: center;
 }
 
+/* Стилі для відображення лічильника книг */
+.count-display {
+    font-size: 1em;
+    font-weight: bold;
+    color: #e0e0e0; /* Світліший колір, щоб контрастував з фіолетовим */
+    margin-right: auto; /* Відсуває від заголовка та кнопки */
+    margin-left: 20px; /* Трохи відступу від заголовка */
+}
+
 header h1 {
     font-size: 1.5em; /* Зменшення розміру тексту заголовка */
     margin: 0;
@@ -125,6 +134,11 @@ header button {
     .book-card {
         width: 45%;
         min-width: 140px;
+    }
+
+    .count-display {
+        font-size: 0.8em; /* Зменшуємо розмір на мобільних */
+        margin-left: 10px;
     }
     
     .book-card img {
