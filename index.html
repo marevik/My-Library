@@ -8,10 +8,11 @@
 </head>
 <body>
 
-    <header>
-        <h1>Моя Домашня Бібліотека</h1>
-        <button id="openModalBtn">📚 Додати Книгу</button>
-    </header>
+<header>
+    <h1>Моя Домашня Бібліотека</h1>
+    <span id="bookCount" class="count-display">Усього книг: 0</span>
+    <button id="openModalBtn">📚 Додати Книгу</button>
+</header>
 
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Пошук за назвою або автором..." onkeyup="filterBooks()">
@@ -42,4 +43,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
