@@ -105,7 +105,7 @@ document.getElementById('addBookForm').addEventListener('submit', function(e) {
         imageURL: imageURL // Буде або введене користувачем, або заглушка
     };
     
-    books.push(newBook);
+    books.unshift(newBook); // Це додає нову книгу на самий початок масиву
     saveBooks();
     renderBooks(books);
     
@@ -170,4 +170,5 @@ function deleteBook(id) {
     }
 
 }
+
 
