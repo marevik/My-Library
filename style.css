@@ -242,3 +242,18 @@ header button {
 .modal-content button:hover {
     background-color: #45a049;
 }
+
+.edit-btn {
+    background-color: #2196F3; /* Синій колір */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 5px; /* Відступ від кнопки видалення */
+}
+
+.edit-btn:hover {
+    background-color: #1976D2;
+}
+
