@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Домашня Бібліотека</title>
     
-    <meta name="theme-color" content="#0b0e14"> 
+    <meta name="theme-color" content="#0b0e14">
     
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.2">
 </head>
 <body>
 
@@ -15,8 +15,8 @@
         <div class="title-wrapper" onclick="toggleDropdown(event)">
             <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
             <div id="backupDropdown" class="dropdown-content">
-                <button onclick="exportBooks()">📥 Зберегти копію</button>
-                <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії</button>
+                <button onclick="exportBooks()">📥 Зберегти копію (Експорт)</button>
+                <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
             </div>
         </div>
         
@@ -25,7 +25,7 @@
     </header>
 
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Пошук...">
+        <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
     </div>
 
     <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
@@ -36,15 +36,16 @@
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h2>Додати нову книгу</h2>
+            
             <form id="addBookForm">
-                <input type="text" id="title" placeholder="Назва" required>
+                <input type="text" id="title" placeholder="Назва книги" required>
                 <input type="text" id="author" placeholder="Автор" required>
-                <input type="url" id="imageURL" placeholder="Посилання на фото">
+                <input type="url" id="imageURL" placeholder="Посилання на обкладинку (URL)">
                 <button type="submit">Зберегти</button>
             </form>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=1.2"></script>
 </body>
 </html>
