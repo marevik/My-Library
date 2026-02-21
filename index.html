@@ -14,19 +14,23 @@
 <body>
 
     <header>
-        <h1>Моя Домашня Бібліотека</h1>
-        <span id="bookCount" class="count-display">Усього книг: 0</span>
-        <button id="openModalBtn">📚 Додати Книгу</button>
-    </header>
+    <div class="title-wrapper" onclick="toggleDropdown(event)">
+        <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
+        <div id="backupDropdown" class="dropdown-content">
+            <button onclick="exportBooks()">📥 Зберегти копію (Експорт)</button>
+            <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
+        </div>
+    </div>
+    
+    <span id="bookCount" class="count-display">Усього книг: 0</span>
+    <button id="openModalBtn">📚 Додати Книгу</button>
+</header>
+
+<input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
 
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Пошук за назвою або автором..." onkeyup="filterBooks()">
-    </div>
-    <div class="backup-controls">
-    <button onclick="exportBooks()" title="Зберегти всі книги у файл">📥 Зберегти копію (Експорт)</button>
-    <button onclick="document.getElementById('importFile').click()" title="Відновити з файлу">📤 Відновити з копії (Імпорт)</button>
-    <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
-</div>
+    </div> 
 
     <div class="book-list-container" id="bookList">
         </div>
@@ -54,3 +58,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+
