@@ -206,3 +206,43 @@ header h1 {
         min-width: 140px;
     }
 }
+
+/* Контейнер тепер розтягує картки на всю ширину */
+.book-list-container {
+    display: grid;
+    /* auto-fit змушує картки розширюватися, щоб заповнити весь рядок */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+    gap: 15px; /* Трохи менший відступ для мобільних */
+    padding: 15px;
+    justify-content: center;
+}
+
+.book-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%; /* Картка завжди займає всю ширину своєї комірки */
+    transition: transform 0.2s;
+}
+
+/* Адаптація висоти картинки, щоб вона не була занадто довгою */
+.book-card img { 
+    width: 100%; 
+    height: 200px; /* Зменшено висоту для балансу */
+    object-fit: cover; 
+}
+
+/* На дуже маленьких екранах (старі телефони) робимо по 2 книги в ряд або 1 широку */
+@media screen and (max-width: 380px) {
+    .book-list-container {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        padding: 10px;
+    }
+    .book-card img {
+        height: 160px;
+    }
+}
