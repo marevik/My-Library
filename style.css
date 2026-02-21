@@ -1,259 +1,311 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f4;
+/* Основні змінні кольорів */
+:root {
+    --bg-color: #0b0e14;        /* Глибокий чорний фон */
+    --card-bg: #161b22;         /* Колір карток */
+    --header-bg: rgba(22, 27, 34, 0.8);
+    --accent-color: #8b5cf6;    /* Фіолетовий акцент */
+    --accent-hover: #7c3aed;
+    --text-main: #ffffff;
+    --text-muted: #8b949e;
+    --danger: #f85149;
+    --border-color: #30363d;
 }
 
-/* Заголовок та кнопка - ОНОВЛЕНО на ФІОЛЕТОВИЙ */
+body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+/* --- Header --- */
 header {
-    background-color: #673AB7; /* Приємний фіолетовий колір */
+    background-color: var(--header-bg);
+    backdrop-filter: blur(12px); /* Ефект розмиття фону */
     color: white;
-    padding: 15px 20px;
+    padding: 15px 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
-/* Стилі для відображення лічильника книг */
-.count-display {
-    font-size: 1em;
-    font-weight: bold;
-    color: #e0e0e0; /* Світліший колір, щоб контрастував з фіолетовим */
-    margin-right: auto; /* Відсуває від заголовка та кнопки */
-    margin-left: 20px; /* Трохи відступу від заголовка */
+.title-wrapper {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
 }
 
 header h1 {
-    font-size: 1.5em; /* Зменшення розміру тексту заголовка */
+    font-size: 1.3em;
     margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-header button {
+.arrow {
+    font-size: 0.6em;
+    color: var(--accent-color);
+    transition: transform 0.3s;
+}
+
+/* Кнопка "Додати Книгу" */
+#openModalBtn {
     padding: 10px 20px;
     border: none;
-    background-color: #512DA8; /* Трохи темніший фіолетовий для кнопки */
+    background-color: var(--accent-color);
     color: white;
     cursor: pointer;
-    border-radius: 5px;
-    font-size: 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
-/* Пошук */
+#openModalBtn:hover {
+    background-color: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Лічильник книг */
+.count-display {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin-left: 20px;
+    margin-right: auto;
+}
+
+/* --- Пошук --- */
 .search-container {
-    padding: 20px;
-    text-align: center;
-    background-color: #e2e2e2;
+    padding: 40px 20px;
+    background: linear-gradient(to bottom, #161b22, #0b0e14);
+    display: flex;
+    justify-content: center;
 }
 
 #searchInput {
-    padding: 10px;
-    width: 80%;
-    max-width: 600px;
-    border: 1px solid #ccc;
-    border-radius: 25px;
+    padding: 12px 25px;
+    width: 100%;
+    max-width: 500px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     font-size: 16px;
+    color: white;
     outline: none;
-    text-align: center;
+    transition: border-color 0.3s, box-shadow 0.3s;
 }
 
-/* Контейнер для списку книг */
-.book-list-container {
+#searchInput:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+/* --- Випадаюче меню --- */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    top: 120%;
+    left: 0;
+    background-color: var(--card-bg);
+    min-width: 240px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 1000;
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dropdown-content.show {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    padding: 20px;
-    gap: 20px;
+    animation: fadeIn 0.2s ease-out;
 }
 
-/* Картка книги */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-content button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.dropdown-content button:hover {
+    background-color: var(--border-color);
+}
+
+/* --- Список книг --- */
+.book-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 30px;
+    padding: 20px 40px 60px;
+}
+
 .book-card {
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    width: 180px; 
-    padding: 10px;
-    text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .book-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-10px);
+    border-color: var(--accent-color);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.3);
 }
 
 .book-card img {
     width: 100%;
-    height: 200px;
+    height: 280px;
     object-fit: cover;
-    border-radius: 5px;
-    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.book-card h3 {
-    font-size: 1em;
-    margin: 5px 0 0;
+.book-info {
+    padding: 15px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.book-info h3 {
+    font-size: 1.1em;
+    margin: 0 0 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.book-card p {
-    font-size: 0.85em;
-    color: #555;
-    margin: 0;
+.book-info p {
+    font-size: 0.9em;
+    color: var(--text-muted);
+    margin: 0 0 15px;
 }
 
-/* --- Кнопка видалення --- */
-.delete-btn {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: #d9534f;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 25px;
-    height: 25px;
-    font-size: 14px;
+/* Кнопки в картці */
+.card-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.edit-btn, .delete-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
     cursor: pointer;
-    line-height: 25px;
-    text-align: center;
-    padding: 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    transition: background-color 0.2s;
+    font-size: 0.85em;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+}
+
+.edit-btn {
+    background-color: transparent;
+    color: var(--text-main);
+}
+
+.edit-btn:hover {
+    background-color: var(--border-color);
+}
+
+.delete-btn {
+    background-color: rgba(248, 81, 73, 0.1);
+    color: var(--danger);
 }
 
 .delete-btn:hover {
-    background-color: #c9302c;
+    background-color: var(--danger);
+    color: white;
 }
 
-/* --- АДАПТИВНІСТЬ ДЛЯ МОБІЛЬНИХ --- */
-@media screen and (max-width: 768px) {
-    .book-card {
-        width: 45%;
-        min-width: 140px;
-    }
-
-    .count-display {
-        font-size: 0.8em; /* Зменшуємо розмір на мобільних */
-        margin-left: 10px;
-    }
-    
-    .book-card img {
-        height: 180px;
-    }
-
-    /* Додаємо стиль для мобільного заголовка */
-    header h1 {
-        font-size: 1.1em; 
-    }
-
-    @media screen and (max-width: 400px) {
-        .book-card {
-            width: 80%;
-        }
-    }
-
-    header {
-        padding: 10px;
-    }
-    
-    header button {
-        padding: 8px 15px;
-        font-size: 12px;
-    }
-
-    .search-container {
-        padding: 15px;
-    }
-
-    #searchInput {
-        width: 90%;
-    }
-}
-
-
-/* --- Модальне Вікно (Спливаюче Вікно) --- */
+/* --- Модальне вікно --- */
 .modal {
     display: none;
     position: fixed;
-    z-index: 1;
+    z-index: 2000;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(0,0,0,0.8);
+    align-items: center;
+    justify-content: center;
 }
 
 .modal-content {
-    background-color: #fefefe;
-    margin: 10% auto;
-    padding: 20px;
-    border: 1px solid #888;
+    background-color: var(--card-bg);
+    padding: 30px;
+    border: 1px solid var(--border-color);
     width: 90%;
     max-width: 400px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    border-radius: 20px;
+    position: relative;
 }
 
 .close-btn {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-
-.close-btn:hover,
-.close-btn:focus {
-    color: black;
-    text-decoration: none;
+    position: absolute;
+    right: 20px;
+    top: 15px;
+    color: var(--text-muted);
+    font-size: 24px;
     cursor: pointer;
 }
 
-.modal-content label,
-.modal-content input,
-.modal-content button {
-    display: block;
-    width: 100%;
-    margin-top: 10px;
-    box-sizing: border-box;
+.modal-content h2 {
+    margin-top: 0;
+    font-size: 1.5em;
 }
 
 .modal-content input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-.modal-content button {
-    background-color: #4CAF50;
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0 20px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
     color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 20px;
+    box-sizing: border-box;
 }
 
-.modal-content button:hover {
-    background-color: #45a049;
-}
-
-.edit-btn {
-    background-color: #2196F3; /* Синій колір */
+.modal-content button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--accent-color);
     color: white;
     border: none;
-    padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: 8px;
+    font-weight: 600;
     cursor: pointer;
-    margin-right: 5px; /* Відступ від кнопки видалення */
 }
 
-.edit-btn:hover {
-    background-color: #1976D2;
+/* --- Мобільна адаптивність --- */
+@media screen and (max-width: 768px) {
+    header { padding: 15px 20px; }
+    header h1 { font-size: 1.1em; }
+    .count-display { display: none; }
+    .book-list-container {
+        padding: 20px;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
 }
-
