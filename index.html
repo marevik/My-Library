@@ -5,52 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Домашня Бібліотека</title>
     
-    <link rel="icon" href="app_icon.png" type="image/png">
+    <meta name="theme-color" content="#0b0e14"> 
     
-    <!-- <link rel="apple-touch-icon" sizes="180x180" href="app_icon.png"> -->
-    
-    <meta name="theme-color" content="#673AB7"> <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header>
-    <div class="title-wrapper" onclick="toggleDropdown(event)">
-        <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
-        <div id="backupDropdown" class="dropdown-content">
-            <button onclick="exportBooks()">📥 Зберегти копію (Експорт)</button>
-            <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
+        <div class="title-wrapper" onclick="toggleDropdown(event)">
+            <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
+            <div id="backupDropdown" class="dropdown-content">
+                <button onclick="exportBooks()">📥 Зберегти копію</button>
+                <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії</button>
+            </div>
         </div>
-    </div>
-    
-    <span id="bookCount" class="count-display">Усього книг: 0</span>
-    <button id="openModalBtn">📚 Додати Книгу</button>
-</header>
-
-<input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
+        
+        <span id="bookCount" class="count-display">Усього книг: 0</span>
+        <button id="openModalBtn">📚 Додати</button>
+    </header>
 
     <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Пошук за назвою або автором..." onkeyup="filterBooks()">
-    </div> 
+        <input type="text" id="searchInput" placeholder="Пошук...">
+    </div>
 
-    <div class="book-list-container" id="bookList">
-        </div>
+    <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
+
+    <div class="book-list-container" id="bookList"></div>
 
     <div id="addBookModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h2>Додати нову книгу</h2>
-            
             <form id="addBookForm">
-                <label for="title">Назва Книги:</label>
-                <input type="text" id="title" required><br>
-                
-                <label for="author">Автор:</label>
-                <input type="text" id="author" required><br>
-                
-                <label for="imageURL">Посилання на Фото (URL):</label>
-                <input type="url" id="imageURL" placeholder="https://example.com/photo.jpg" ><br>
-                
-                <button type="submit">Зберегти Книгу</button>
+                <input type="text" id="title" placeholder="Назва" required>
+                <input type="text" id="author" placeholder="Автор" required>
+                <input type="url" id="imageURL" placeholder="Посилання на фото">
+                <button type="submit">Зберегти</button>
             </form>
         </div>
     </div>
