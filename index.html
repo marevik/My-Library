@@ -13,15 +13,20 @@
 </head>
 <body>
 
-<header>
-    <h1>Моя Домашня Бібліотека</h1>
-    <span id="bookCount" class="count-display">Усього книг: 0</span>
-    <button id="openModalBtn">📚 Додати Книгу</button>
-</header>
+    <header>
+        <h1>Моя Домашня Бібліотека</h1>
+        <span id="bookCount" class="count-display">Усього книг: 0</span>
+        <button id="openModalBtn">📚 Додати Книгу</button>
+    </header>
 
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Пошук за назвою або автором..." onkeyup="filterBooks()">
     </div>
+    <div class="backup-controls">
+    <button onclick="exportBooks()" title="Зберегти всі книги у файл">📥 Зберегти копію (Експорт)</button>
+    <button onclick="document.getElementById('importFile').click()" title="Відновити з файлу">📤 Відновити з копії (Імпорт)</button>
+    <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
+</div>
 
     <div class="book-list-container" id="bookList">
         </div>
@@ -39,7 +44,7 @@
                 <input type="text" id="author" required><br>
                 
                 <label for="imageURL">Посилання на Фото (URL):</label>
-                <input type="url" id="imageURL" placeholder="https://example.com/photo.jpg"><br>
+                <input type="url" id="imageURL" placeholder="https://example.com/photo.jpg" ><br>
                 
                 <button type="submit">Зберегти Книгу</button>
             </form>
@@ -48,7 +53,4 @@
 
     <script src="script.js"></script>
 </body>
-
 </html>
-
-
