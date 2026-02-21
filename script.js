@@ -1,9 +1,8 @@
-// 1. ПОЧАТКОВІ ДАНІ ТА НАЛАШТУВАННЯ
 let books = [];
 let editModeId = null; 
-const storageKey = 'myLibraryBooks'; // Ваш поточний ключ сховища
+const storageKey = 'myLibraryBooks';
 
-// Елементи DOM
+// Елементи
 const modal = document.getElementById('addBookModal');
 const openModalBtn = document.getElementById('openModalBtn');
 const addBookForm = document.getElementById('addBookForm');
@@ -11,37 +10,52 @@ const bookList = document.getElementById('bookList');
 const bookCountElement = document.getElementById('bookCount');
 const searchInput = document.getElementById('searchInput');
 
-// --- 2. МОДАЛЬНЕ ВІКНО ---
+// --- 1. ЛОГІКА ВІКЕН (Dropdown та Modal) ---
 
-// Відкрити
-openModalBtn.onclick = function() {
-    editModeId = null;
-    addBookForm.reset();
-    document.querySelector('#addBookModal h2').textContent = 'Додати нову книгу';
-    modal.style.display = "flex"; // Використовуємо flex для центрування
+// Відкриття/Закриття меню (Експорт/Імпорт)
+function toggleDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('backupDropdown');
+    if (dropdown) dropdown.classList.toggle('show');
 }
 
-// Закрити
+// Відкриття модалки додавання книги
+if (openModalBtn) {
+    openModalBtn.onclick = function() {
+        editModeId = null;
+        addBookForm.reset();
+        document.querySelector('#addBookModal h2').textContent = 'Додати нову книгу';
+        modal.style.display = "flex";
+    };
+}
+
 function closeModal() {
     modal.style.display = "none";
 }
 
-// Закрити при кліку поза вікном
+// Закриття всього при кліку зовні
 window.onclick = function(event) {
-    if (event.target === modal) closeModal();
-}
+    // Закриваємо меню, якщо клікнули не по заголовку
+    if (!event.target.closest('.title-wrapper')) {
+        const dropdown = document.getElementById('backupDropdown');
+        if (dropdown) dropdown.classList.remove('show');
+    }
+    // Закриваємо модалку
+    if (event.target === modal) {
+        closeModal();
+    }
+};
 
-// --- 3. РОБОТА З ДАНИМИ (localStorage) ---
+// --- 2. ФУНКЦІЇ ДАНИХ ---
 
 function loadBooks() {
     const storedBooks = localStorage.getItem(storageKey);
     if (storedBooks) {
         books = JSON.parse(storedBooks);
     } else {
-        // Тестові книги, якщо порожньо
+        // Початкові дані
         books = [
-            { id: Date.now() + 1, title: 'Сто років самотності', author: 'Габріель Гарсіа Маркес', imageURL: 'https://cdn.photos.litres.ru/pub/c/pdf-22122699.jpg' },
-            { id: Date.now() + 2, title: 'Кобзар', author: 'Тарас Шевченко', imageURL: 'https://nashformat.ua/wp-content/uploads/2021/07/kobzar-nashformat.jpg' }
+            { id: Date.now(), title: 'Колір Магії', author: 'Террі Пратчетт', imageURL: '' }
         ];
     }
     renderBooks(books);
@@ -51,13 +65,17 @@ function saveBooks() {
     localStorage.setItem(storageKey, JSON.stringify(books));
 }
 
-// --- 4. ВІДОБРАЖЕННЯ ---
+// --- 3. ВІДОБРАЖЕННЯ (Modern UI) ---
 
 function createBookCard(book) {
     const card = document.createElement('div');
     card.className = 'book-card';
+    
+    // Використовуємо локальну заглушку, якщо URL порожній або видає помилку
+    const imgUrl = book.imageURL && book.imageURL.trim() !== "" ? book.imageURL : 'https://placehold.co/200x280/1a1d29/white?text=No+Photo';
+
     card.innerHTML = `
-        <img src="${book.imageURL}" alt="${book.title}" onerror="this.src='https://via.placeholder.com/180x200?text=Помилка+фото'">
+        <img src="${imgUrl}" alt="${book.title}" onerror="this.src='https://placehold.co/200x280/1a1d29/white?text=Error'">
         <div class="book-info">
             <h3>${book.title}</h3>
             <p>${book.author}</p>
@@ -71,15 +89,15 @@ function createBookCard(book) {
 }
 
 function renderBooks(bookArray) {
+    if (!bookList) return;
     bookList.innerHTML = '';
     
-    // Оновлення лічильника
     if (bookCountElement) {
         bookCountElement.textContent = `Усього книг: ${books.length}`;
     }
 
     if (bookArray.length === 0) {
-        bookList.innerHTML = '<p style="text-align: center; width: 100%;">Список порожній.</p>';
+        bookList.innerHTML = '<p style="text-align: center; width: 100%; color: #94a3b8; padding-top: 50px;">Бібліотека порожня.</p>';
         return;
     }
 
@@ -88,37 +106,30 @@ function renderBooks(bookArray) {
     });
 }
 
-// --- 5. ДОДАВАННЯ ТА РЕДАГУВАННЯ ---
+// --- 4. ДОДАВАННЯ ТА РЕДАГУВАННЯ ---
 
-addBookForm.addEventListener('submit', function(e) {
+addBookForm.onsubmit = function(e) {
     e.preventDefault();
 
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
-    let imageURL = document.getElementById('imageURL').value;
-
-    if (!imageURL) {
-        imageURL = 'https://via.placeholder.com/180x200?text=Обкладинка+відсутня'; 
-    }
+    const imageURL = document.getElementById('imageURL').value;
 
     if (editModeId) {
-        // Редагування
         const index = books.findIndex(b => b.id === editModeId);
         if (index !== -1) {
             books[index] = { ...books[index], title, author, imageURL };
         }
         editModeId = null;
     } else {
-        // Додавання на початок
         const newBook = { id: Date.now(), title, author, imageURL };
         books.unshift(newBook);
     }
 
     saveBooks();
     renderBooks(books);
-    this.reset();
     closeModal();
-});
+};
 
 window.openEditModal = function(id) {
     const book = books.find(b => b.id === id);
@@ -127,82 +138,58 @@ window.openEditModal = function(id) {
     editModeId = id;
     document.getElementById('title').value = book.title;
     document.getElementById('author').value = book.author;
-    document.getElementById('imageURL').value = book.imageURL.includes('placeholder') ? '' : book.imageURL;
+    document.getElementById('imageURL').value = book.imageURL;
 
     document.querySelector('#addBookModal h2').textContent = 'Редагувати книгу';
     modal.style.display = "flex";
-}
-
-// --- 6. ВИДАЛЕННЯ ТА ПОШУК ---
+};
 
 window.deleteBook = function(id) {
-    const bookToDelete = books.find(book => book.id === id);
-    if (confirm(`Ви впевнені, що хочете видалити книгу "${bookToDelete.title}"?`)) {
-        books = books.filter(book => book.id !== id);
+    if (confirm("Видалити цю книгу?")) {
+        books = books.filter(b => b.id !== id);
         saveBooks();
         renderBooks(books);
     }
-}
+};
 
-// Додамо виклик пошуку через обробник подій (краще, ніж onclick)
+// Пошук
 if (searchInput) {
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        const filtered = books.filter(book => 
-            book.title.toLowerCase().includes(searchTerm) || 
-            book.author.toLowerCase().includes(searchTerm)
+    searchInput.oninput = function() {
+        const term = this.value.toLowerCase();
+        const filtered = books.filter(b => 
+            b.title.toLowerCase().includes(term) || b.author.toLowerCase().includes(term)
         );
         renderBooks(filtered);
-    });
+    };
 }
 
-// --- 7. РЕЗЕРВНЕ КОПІЮВАННЯ (ЕКСПОРТ ТА ІМПОРТ) ---
-
+// Експорт та імпорт (з вашого коду)
 window.exportBooks = function() {
-    if (books.length === 0) {
-        alert("Нічого зберігати!");
-        return;
-    }
-
     const dataStr = JSON.stringify(books, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `my_library_backup_${new Date().toISOString().slice(0,10)}.json`;
-    
-    document.body.appendChild(link);
+    link.download = `library_backup.json`;
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    alert("Копію створено!");
 };
 
 window.importBooks = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const importedBooks = JSON.parse(e.target.result);
-            if (Array.isArray(importedBooks)) {
-                if (confirm(`Замінити поточну бібліотеку (${books.length} кн.) даними з файлу (${importedBooks.length} кн.)?`)) {
-                    books = importedBooks;
-                    saveBooks();
-                    renderBooks(books);
-                    alert("Дані успішно відновлено!");
-                }
+            const imported = JSON.parse(e.target.result);
+            if (Array.isArray(imported)) {
+                books = imported;
+                saveBooks();
+                renderBooks(books);
+                alert("Дані відновлено!");
             }
-        } catch (err) {
-            alert("Помилка: файл пошкоджений або має невірний формат.");
-        }
+        } catch (err) { alert("Помилка файлу!"); }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Скидаємо вибір файлу
 };
 
-// Ініціалізація
 document.addEventListener('DOMContentLoaded', loadBooks);
