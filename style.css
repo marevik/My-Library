@@ -206,7 +206,6 @@ header h1 {
         min-width: 140px;
     }
 }
-
 /* Контейнер тепер розтягує картки на всю ширину */
 .book-list-container {
     display: grid;
@@ -245,4 +244,89 @@ header h1 {
     .book-card img {
         height: 160px;
     }
+
+    
+}
+
+/* Бейдж прочитано на картці */
+.read-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--accent-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    z-index: 5;
+}
+
+/* Відображення зірок на картці */
+.rating-display {
+    color: #ffca08;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+
+/* Зірки в модалці */
+.star { transition: transform 0.1s; display: inline-block; }
+.star:hover { transform: scale(1.2); }
+
+.book-card {
+    cursor: pointer; /* Робимо всю картку візуально клікабельною */
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+/* Статус на обкладинці */
+/* Чиста галочка без фону */
+.read-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 1.4rem; /* Розмір галочки */
+    z-index: 10;
+    background: none !important; 
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    /* Додаємо легку тінь самому символу, щоб його було видно на будь-якому фоні */
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8)); 
+    pointer-events: none;
+}
+
+.book-card {
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.book-card:hover {
+    transform: translateY(-5px);
+}
+
+.rating-display {
+    color: #ffca08;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+/* Повністю ховаємо кнопки на картці */
+.card-btns {
+    display: none !important;
+}
+
+/* Прибираємо фіолетовий фон навколо галочки, якщо він залишився */
+.read-badge {
+    background: none !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
 }
