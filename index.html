@@ -46,7 +46,36 @@
         </div>
     </div>
 
+    <div id="detailsModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeDetailsModal()">&times;</span>
+        <h2 id="detailsTitle">Назва книги</h2>
+        <p id="detailsAuthor" style="color: var(--text-muted); margin-bottom: 20px;"></p>
+        
+        <div style="margin: 20px 0;">
+            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                <input type="checkbox" id="detailsReadStatus" style="width: 18px; height: 18px;"> 
+                <span>Прочитано</span>
+            </label>
+        </div>
+
+        <div id="starsInput" style="font-size: 1.8rem; color: #ffca08; cursor: pointer; margin-bottom: 20px;">
+            <span class="star" data-value="1">☆</span>
+            <span class="star" data-value="2">☆</span>
+            <span class="star" data-value="3">☆</span>
+            <span class="star" data-value="4">☆</span>
+            <span class="star" data-value="5">☆</span>
+        </div>
+
+        <button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
+        
+        <div style="display: flex; gap: 10px;">
+            <button id="goToEditBtn" style="flex: 2; padding: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">⚙️ Редагувати</button>
+            <button id="deleteInDetailsBtn" style="flex: 1; padding: 10px; background: rgba(248, 81, 73, 0.1); color: var(--danger); border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🗑 Вид.</button>
+        </div>
+    </div>
+</div>
+
     <script src="script.js?v=1.2"></script>
 </body>
 </html>
-
