@@ -51,52 +51,28 @@ function renderBooks(arr) {
     arr.forEach(book => {
         const card = document.createElement('div');
         card.className = 'book-card';
-        // Розрахунок зірочок
+        
+        // Використовуємо addEventListener замість .onclick
+        card.addEventListener('click', () => {
+            openDetailsModal(book.id);
+        });
+        
         const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
         
         card.innerHTML = `
-            ${book.isRead ? '<div class="read-badge">✅ ПРОЧИТАНО</div>' : ''}
-            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
+            ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
+            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
+                 onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
             <div class="book-info">
-                <div class="rating-display">${stars}</div>
+                <div style="color: #ffca08; font-size: 0.8rem; margin-bottom: 4px;">${stars}</div>
                 <h3>${book.title}</h3>
                 <p>${book.author}</p>
-                <div class="card-btns">
-                    <button class="edit-btn" onclick="openDetailsModal(${book.id})">🔍 Деталі</button>
-                    <button class="delete-btn" onclick="deleteBook(${book.id})">Вид.</button>
-                </div>
             </div>
         `;
         bookList.appendChild(card);
     });
 }
-// function renderBooks(arr) {
-//     bookList.innerHTML = '';
-//     if (bookCountElement) bookCountElement.textContent = `Книг: ${books.length}`;
-    
-//     if (arr.length === 0) {
-//         bookList.innerHTML = '<p style="text-align:center;width:100%;color:gray;">Тут поки порожньо</p>';
-//         return;
-//     }
 
-//     arr.forEach(book => {
-//         const card = document.createElement('div');
-//         card.className = 'book-card';
-//         const img = book.imageURL || `https://placehold.co/200x280/161b22/white?text=No+Photo`;
-//         card.innerHTML = `
-//             <img src="${img}" alt="cover" onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
-//             <div class="book-info">
-//                 <h3>${book.title}</h3>
-//                 <p>${book.author}</p>
-//                 <div class="card-btns">
-//                     <button class="edit-btn" onclick="openEditModal(${book.id})">Ред.</button>
-//                     <button class="delete-btn" onclick="deleteBook(${book.id})">Вид.</button>
-//                 </div>
-//             </div>
-//         `;
-//         bookList.appendChild(card);
-//     });
-// }
 
 // --- Дії ---
 addBookForm.onsubmit = (e) => {
@@ -176,51 +152,7 @@ window.importBooks = (e) => {
     reader.readAsText(e.target.files[0]);
 };
 
-// let currentDetailsId = null;
-// let tempRating = 0;
 
-// window.openDetailsModal = (id) => {
-//     const book = books.find(b => b.id === id);
-//     if (!book) return;
-
-//     currentDetailsId = id;
-//     tempRating = book.rating || 0;
-    
-//     document.getElementById('detailsTitle').textContent = book.title;
-//     document.getElementById('detailsReadStatus').checked = book.isRead || false;
-//     updateStarsUI(tempRating);
-    
-//     document.getElementById('detailsModal').style.display = "flex";
-// };
-
-// // Клік по зірках
-// document.querySelectorAll('.star').forEach(star => {
-//     star.onclick = function() {
-//         tempRating = parseInt(this.getAttribute('data-value'));
-//         updateStarsUI(tempRating);
-//     };
-// });
-
-// function updateStarsUI(rating) {
-//     document.querySelectorAll('.star').forEach((s, i) => {
-//         s.textContent = i < rating ? '★' : '☆';
-//     });
-// }
-
-// document.getElementById('saveDetailsBtn').onclick = () => { 
-//     const index = books.findIndex(b => b.id === currentDetailsId);
-//     if (index !== -1) {
-//         books[index].isRead = document.getElementById('detailsReadStatus').checked;
-//         books[index].rating = tempRating;
-//         saveBooks();
-//         renderBooks(books);
-//         closeDetailsModal();
-//     }
-// };
-
-// function closeDetailsModal() {
-//     document.getElementById('detailsModal').style.display = "none";
-// }
 let currentDetailsId = null;
 let tempRating = 0;
 
