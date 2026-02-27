@@ -330,3 +330,16 @@ header h1 {
     box-shadow: none !important;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
 }
+
+.count-display {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-right: 10px;
+    white-space: nowrap; /* Щоб цифри не переносилися на новий рядок */
+}
+
+@media screen and (max-width: 768px) {
+    .count-display {
+        font-size: 0.7rem; /* Менший шрифт для маленьких екранів */
+    }
+}
