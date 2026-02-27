@@ -360,26 +360,50 @@ header h1 {
     font-weight: 600;
 }
 
+@media screen and (max-width: 768px) {
+    .count-display {
+        font-size: 0.6rem; /* Менший шрифт для маленьких екранів */
+    }
+}
+
+/* Контейнер для вертикального списку */
+.count-wrapper {
+    display: flex;
+    flex-direction: column; /* Елементи один під одним */
+    justify-content: center;
+    gap: 2px;
+    margin: 0 10px;
+}
+
+.count-item {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    line-height: 1.2;
+    font-weight: 300;
+}
+
 /* Адаптація хедера для мобільних */
 @media screen and (max-width: 768px) {
     header {
-        padding: 10px 12px;
+        padding: 5px 5px;
         gap: 8px;
     }
 
     #headerTitle {
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         flex-shrink: 1;
         overflow: hidden;
         text-overflow: ellipsis; /* Якщо текст все одно не влазить, він обріжеться крапками */
     }
 
     .count-item {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
     }
 
     #openModalBtn {
         padding: 6px 10px;
-        font-size: 0.75rem;
+        font-size: 0.65rem;
     }
 }
+
