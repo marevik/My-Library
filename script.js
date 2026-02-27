@@ -160,18 +160,35 @@ let tempRating = 0;
 // 1. Оновлений рендер (без кнопок на картці)
 function renderBooks(arr) {
     bookList.innerHTML = '';
-    if (bookCountElement) bookCountElement.textContent = `Книг: ${books.length}`;
     
+    // Підрахунок кількості
+    const total = books.length;
+    const read = books.filter(b => b.isRead).length;
+    
+    // Оновлення тексту в хедері
+    if (document.getElementById('bookCount')) {
+        document.getElementById('bookCount').textContent = total;
+    }
+    if (document.getElementById('readCount')) {
+        document.getElementById('readCount').textContent = read;
+    }
+    
+    if (arr.length === 0) {
+        bookList.innerHTML = '<p style="text-align:center;width:100%;color:gray;">Тут поки порожньо</p>';
+        return;
+    }
+
     arr.forEach(book => {
         const card = document.createElement('div');
         card.className = 'book-card';
-        card.onclick = () => openDetailsModal(book.id); // Клік по картці відкриває вікно
+        card.onclick = () => openDetailsModal(book.id);
         
         const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
         
         card.innerHTML = `
             ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
-            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
+            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
+                 onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
             <div class="book-info">
                 <div style="color: #ffca08; font-size: 0.8rem; margin-bottom: 4px;">${stars}</div>
                 <h3>${book.title}</h3>
@@ -253,3 +270,4 @@ function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = "none";
 }
 document.addEventListener('DOMContentLoaded', loadBooks);
+
