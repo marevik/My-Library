@@ -81,16 +81,16 @@ addBookForm.onsubmit = (e) => {
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
     const imageURL = document.getElementById('imageURL').value;
-    // Отримуємо тип з нового випадаючого списку (додамо його в HTML нижче)
-    const type = document.getElementById('bookType').value || 'paper'; 
+    
+    // ВАЖЛИВО: переконайтеся, що ID співпадає з тим, що у вашому HTML всередині форми
+    const typeSelect = document.getElementById('addBookType'); 
+    const type = typeSelect ? typeSelect.value : 'paper'; 
 
     if (editModeId) {
         const i = books.findIndex(b => b.id === editModeId);
-        // Зберігаємо існуючі дані, оновлюючи тип
         books[i] = { ...books[i], title, author, imageURL, type };
         editModeId = null;
     } else {
-        // Для нової книги за замовчуванням додаємо статус прочитаного та рейтинг
         books.unshift({ 
             id: Date.now(), 
             title, 
@@ -101,6 +101,7 @@ addBookForm.onsubmit = (e) => {
             rating: 0 
         });
     }
+    
     saveBooks();
     renderBooks(books);
     closeModal();
@@ -281,3 +282,4 @@ function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = "none";
 }
 document.addEventListener('DOMContentLoaded', loadBooks);
+
