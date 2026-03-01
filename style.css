@@ -84,7 +84,11 @@ header h1 {
     cursor: pointer;
 }
 
-.search-container { padding: 25px 20px; display: flex; justify-content: center; }
+.search-container {
+    padding: 0px 20px 0px; /* Було 25px зверху, ставимо 10px */
+    display: flex;
+    justify-content: center;
+}
 #searchInput {
     width: 100%;
     max-width: 500px;
@@ -97,10 +101,7 @@ header h1 {
 }
 
 .book-list-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 20px;
-    padding: 0 20px 40px;
+    padding-top: 5px; /* Підтягуємо картки ближче до вкладок */
 }
 
 .book-card {
@@ -176,34 +177,21 @@ header h1 {
 /* АДАПТИВНІСТЬ ДЛЯ МОБІЛЬНИХ — ВИПРАВЛЕНО */
 @media screen and (max-width: 768px) {
     header {
-        padding: 10px 15px;
-        gap: 10px;
+        padding: 5px 10px; /* Трохи більше з боків для балансу */
+        gap: 5px;
     }
 
-    header h1 {
-        font-size: 1rem;
-        flex-shrink: 1; /* Дозволяє заголовку трохи стиснутися */
-    }
+    .tabs-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 10px 5px; /* Більше зверху, менше знизу */
+    background-color: var(--bg-color);
+}
 
-    /* Показуємо лічильник, але робимо його меншим */
-    .count-display {
-        display: inline-block !important; 
-        font-size: 0.75rem;
-        margin-left: 5px;
-        margin-right: 5px;
-        white-space: nowrap;
-        color: #e0e0e0;
-    }
-
-    header button#openModalBtn {
-        padding: 6px 10px;
-        font-size: 0.75rem;
-        white-space: nowrap;
-    }
-
-    .book-card {
-        width: calc(50% - 20px); /* Дві картки в ряд на мобільних */
-        min-width: 140px;
+    .tab-btn {
+        padding: 5px 10px; /* Робимо самі кнопки меншими */
+        font-size: 0.7rem;
     }
 }
 /* Контейнер тепер розтягує картки на всю ширину */
@@ -340,28 +328,6 @@ header h1 {
 
 @media screen and (max-width: 768px) {
     .count-display {
-        font-size: 0.7rem; /* Менший шрифт для маленьких екранів */
-    }
-}
-/* Контейнер для вертикального списку */
-.count-wrapper {
-    display: flex;
-    flex-direction: column; /* Елементи один під одним */
-    justify-content: center;
-    gap: 2px;
-    margin: 0 10px;
-}
-
-.count-item {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-    line-height: 1.2;
-    font-weight: 600;
-}
-
-@media screen and (max-width: 768px) {
-    .count-display {
         font-size: 0.6rem; /* Менший шрифт для маленьких екранів */
     }
 }
@@ -407,3 +373,65 @@ header h1 {
     }
 }
 
+.tabs-container {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 15px 10px; 
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tab-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tab-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Іконка типу на самій картці */
+.type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    z-index: 5;
+}
+
+/* Стиль для списку вибору у формі */
+#bookType {
+    width: 100%;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+}
+
+/* Іконка типу на картці (правий верхній кут) */
+.type-icon-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 3px 6px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    z-index: 5;
+    pointer-events: none;
+}
