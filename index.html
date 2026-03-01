@@ -20,12 +20,19 @@
             </div>
         </div>
         
-       <div class="count-wrapper">
+        <div class="count-wrapper">
     <div class="count-item">📚 Усього: <span id="bookCount">0</span></div>
     <div class="count-item">✅ Прочитано: <span id="readCount">0</span></div>
 </div>
         <button id="openModalBtn">📚 Додати</button>
     </header>
+<div class="tabs-container">
+    <button class="tab-btn active" onclick="filterByType('all')">Всі</button>
+    <button class="tab-btn" onclick="filterByType('paper')">📖 Паперові</button>
+    <button class="tab-btn" onclick="filterByType('ebook')">📱 Е-книги</button>
+    <button class="tab-btn" onclick="filterByType('audio')">🎧 Аудіо</button>
+</div>
+
 
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
@@ -69,7 +76,14 @@
             <span class="star" data-value="4">☆</span>
             <span class="star" data-value="5">☆</span>
         </div>
-
+<div style="margin-bottom: 20px;">
+    <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Тип книги:</p>
+    <select id="detailsBookType" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+        <option value="paper">📖 Паперова</option>
+        <option value="ebook">📱 Електронна</option>
+        <option value="audio">🎧 Аудіокнига</option>
+    </select>
+</div>
         <button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
         
         <div style="display: flex; gap: 10px;">
@@ -82,5 +96,3 @@
     <script src="script.js?v=1.2"></script>
 </body>
 </html>
-
-
