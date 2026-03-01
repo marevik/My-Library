@@ -75,35 +75,32 @@ function renderBooks(arr) {
 
 
 // --- Дії ---
+// 1. Оновлюємо додавання/редагування книги
 addBookForm.onsubmit = (e) => {
     e.preventDefault();
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
     const imageURL = document.getElementById('imageURL').value;
+    // Отримуємо тип з нового випадаючого списку (додамо його в HTML нижче)
+    const type = document.getElementById('bookType').value || 'paper'; 
 
     if (editModeId) {
         const i = books.findIndex(b => b.id === editModeId);
-        books[i] = { ...books[i], title, author, imageURL };
+        // Зберігаємо існуючі дані, оновлюючи тип
+        books[i] = { ...books[i], title, author, imageURL, type };
         editModeId = null;
     } else {
-    books.unshift({ 
-        id: Date.now(), 
-        title, 
-        author, 
-        imageURL, 
-        isRead: false, 
-        rating: 0 
-    });
-}
-    // Коли додаємо нову книгу
-const newBook = { 
-    id: Date.now(), 
-    title, 
-    author, 
-    imageURL,
-    isRead: false, // за замовчуванням не прочитана
-    rating: 0      // оцінка 0
-};
+        // Для нової книги за замовчуванням додаємо статус прочитаного та рейтинг
+        books.unshift({ 
+            id: Date.now(), 
+            title, 
+            author, 
+            imageURL, 
+            type, 
+            isRead: false, 
+            rating: 0 
+        });
+    }
     saveBooks();
     renderBooks(books);
     closeModal();
@@ -156,37 +153,30 @@ window.importBooks = (e) => {
 let currentDetailsId = null;
 let tempRating = 0;
 
-// 1. Оновлена функція малювання карток
-// 1. Оновлений рендер (без кнопок на картці)
+// 2. Оновлюємо рендер, щоб книги без типу вважалися паперовими
 function renderBooks(arr) {
     bookList.innerHTML = '';
     
-    // Підрахунок кількості
+    // Оновлення лічильників (ваш варіант)
     const total = books.length;
     const read = books.filter(b => b.isRead).length;
-    
-    // Оновлення тексту в хедері
-    if (document.getElementById('bookCount')) {
-        document.getElementById('bookCount').textContent = total;
-    }
-    if (document.getElementById('readCount')) {
-        document.getElementById('readCount').textContent = read;
-    }
-    
-    if (arr.length === 0) {
-        bookList.innerHTML = '<p style="text-align:center;width:100%;color:gray;">Тут поки порожньо</p>';
-        return;
-    }
+    if (document.getElementById('bookCount')) document.getElementById('bookCount').textContent = total;
+    if (document.getElementById('readCount')) document.getElementById('readCount').textContent = read;
 
     arr.forEach(book => {
+        // Якщо типу немає (старі книги), ставимо 'paper'
+        const bookType = book.type || 'paper';
+        
         const card = document.createElement('div');
         card.className = 'book-card';
         card.onclick = () => openDetailsModal(book.id);
         
         const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
-        
+        const typeIcon = bookType === 'audio' ? '🎧' : (bookType === 'ebook' ? '📱' : '📖');
+
         card.innerHTML = `
             ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
+            <div class="type-badge">${typeIcon}</div>
             <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
                  onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
             <div class="book-info">
@@ -198,6 +188,20 @@ function renderBooks(arr) {
         bookList.appendChild(card);
     });
 }
+
+// 3. Функція фільтрації для вкладок
+window.filterByType = (type) => {
+    // Знімаємо клас active з усіх кнопок і додаємо потрібній
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    if (type === 'all') {
+        renderBooks(books);
+    } else {
+        const filtered = books.filter(b => (b.type || 'paper') === type);
+        renderBooks(filtered);
+    }
+};
 
 // 2. Логіка видалення всередині вікна деталей
 document.getElementById('deleteInDetailsBtn').onclick = function() {
@@ -237,8 +241,11 @@ window.openDetailsModal = (id) => {
     document.getElementById('detailsTitle').textContent = book.title;
     document.getElementById('detailsAuthor').textContent = book.author;
     document.getElementById('detailsReadStatus').checked = book.isRead || false;
-    updateStarsUI(tempRating);
     
+    // Встановлюємо правильний тип у випадаючому списку (за замовчуванням paper)
+    document.getElementById('detailsBookType').value = book.type || 'paper';
+    
+    updateStarsUI(tempRating);
     document.getElementById('detailsModal').style.display = "flex";
 };
 
@@ -260,6 +267,10 @@ document.getElementById('saveDetailsBtn').onclick = () => {
     if (index !== -1) {
         books[index].isRead = document.getElementById('detailsReadStatus').checked;
         books[index].rating = tempRating;
+        
+        // Зберігаємо змінений тип книги
+        books[index].type = document.getElementById('detailsBookType').value;
+        
         saveBooks();
         renderBooks(books);
         closeDetailsModal();
@@ -270,4 +281,3 @@ function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = "none";
 }
 document.addEventListener('DOMContentLoaded', loadBooks);
-
