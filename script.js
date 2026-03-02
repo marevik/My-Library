@@ -46,21 +46,31 @@ function saveBooks() {
 }
 function renderBooks(arr) {
     bookList.innerHTML = '';
-    if (bookCountElement) bookCountElement.textContent = `Книг: ${books.length}`;
     
+    // Оновлення лічильників на основі відфільтрованого масиву `arr`
+    const total = arr.length;
+    const read = arr.filter(b => b.isRead).length;
+    const ebookCount = arr.filter(b => (b.type || 'paper') === 'ebook').length;
+    const audioCount = arr.filter(b => (b.type || 'paper') === 'audio').length;
+    
+    if (document.getElementById('bookCount')) document.getElementById('bookCount').textContent = total;
+    if (document.getElementById('readCount')) document.getElementById('readCount').textContent = read;
+    if (document.getElementById('ebookCount')) document.getElementById('ebookCount').textContent = ebookCount;
+    if (document.getElementById('audioCount')) document.getElementById('audioCount').textContent = audioCount;
+
     arr.forEach(book => {
+        const bookType = book.type || 'paper';
+        
         const card = document.createElement('div');
         card.className = 'book-card';
-        
-        // Використовуємо addEventListener замість .onclick
-        card.addEventListener('click', () => {
-            openDetailsModal(book.id);
-        });
+        card.addEventListener('click', () => openDetailsModal(book.id));
         
         const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
-        
+        const typeIcon = bookType === 'audio' ? '🎧' : (bookType === 'ebook' ? '📱' : '📖');
+
         card.innerHTML = `
             ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
+            <div class="type-badge">${typeIcon}</div>
             <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
                  onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
             <div class="book-info">
@@ -73,16 +83,13 @@ function renderBooks(arr) {
     });
 }
 
-
 // --- Дії ---
-// 1. Оновлюємо додавання/редагування книги
 addBookForm.onsubmit = (e) => {
     e.preventDefault();
     const title = document.getElementById('title').value;
     const author = document.getElementById('author').value;
     const imageURL = document.getElementById('imageURL').value;
     
-    // ВАЖЛИВО: переконайтеся, що ID співпадає з тим, що у вашому HTML всередині форми
     const typeSelect = document.getElementById('addBookType'); 
     const type = typeSelect ? typeSelect.value : 'paper'; 
 
@@ -127,7 +134,8 @@ window.deleteBook = (id) => {
 if (searchInput) {
     searchInput.oninput = function() {
         const val = this.value.toLowerCase();
-        renderBooks(books.filter(b => b.title.toLowerCase().includes(val) || b.author.toLowerCase().includes(val)));
+        const filtered = books.filter(b => b.title.toLowerCase().includes(val) || b.author.toLowerCase().includes(val));
+        renderBooks(filtered);
     };
 }
 
@@ -153,42 +161,6 @@ window.importBooks = (e) => {
 
 let currentDetailsId = null;
 let tempRating = 0;
-
-// 2. Оновлюємо рендер, щоб книги без типу вважалися паперовими
-function renderBooks(arr) {
-    bookList.innerHTML = '';
-    
-    // Оновлення лічильників (ваш варіант)
-    const total = books.length;
-    const read = books.filter(b => b.isRead).length;
-    if (document.getElementById('bookCount')) document.getElementById('bookCount').textContent = total;
-    if (document.getElementById('readCount')) document.getElementById('readCount').textContent = read;
-
-    arr.forEach(book => {
-        // Якщо типу немає (старі книги), ставимо 'paper'
-        const bookType = book.type || 'paper';
-        
-        const card = document.createElement('div');
-        card.className = 'book-card';
-        card.onclick = () => openDetailsModal(book.id);
-        
-        const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
-        const typeIcon = bookType === 'audio' ? '🎧' : (bookType === 'ebook' ? '📱' : '📖');
-
-        card.innerHTML = `
-            ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
-            <div class="type-badge">${typeIcon}</div>
-            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
-                 onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
-            <div class="book-info">
-                <div style="color: #ffca08; font-size: 0.8rem; margin-bottom: 4px;">${stars}</div>
-                <h3>${book.title}</h3>
-                <p>${book.author}</p>
-            </div>
-        `;
-        bookList.appendChild(card);
-    });
-}
 
 // 3. Функція фільтрації для вкладок
 window.filterByType = (type) => {
@@ -282,4 +254,3 @@ function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = "none";
 }
 document.addEventListener('DOMContentLoaded', loadBooks);
-
