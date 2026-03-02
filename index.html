@@ -7,6 +7,12 @@
     
     <meta name="theme-color" content="#0b0e14">
     
+    <!-- Make it a web app -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="app_icon.png">
+
     <link rel="stylesheet" href="style.css?v=1.3">
 </head>
 <body>
@@ -23,6 +29,8 @@
         <div class="count-wrapper">
     <div class="count-item">📚 Усього: <span id="bookCount">0</span></div>
     <div class="count-item">✅ Прочитано: <span id="readCount">0</span></div>
+    <div class="count-item">📱 Е-книги: <span id="ebookCount">0</span></div>
+    <div class="count-item">🎧 Аудіо: <span id="audioCount">0</span></div>
 </div>
         <button id="openModalBtn">📚 Додати</button>
     </header>
