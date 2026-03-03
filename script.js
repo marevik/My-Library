@@ -1,15 +1,22 @@
 let books = [];
-let editModeId = null; 
 const storageKey = 'myLibraryBooks';
+
+// State variables
+let currentFilterType = 'all';
+let currentSearchQuery = '';
+let currentSortOrder = 'date-new';
+let currentPublisher = 'all';
 
 const modal = document.getElementById('addBookModal');
 const openModalBtn = document.getElementById('openModalBtn');
 const addBookForm = document.getElementById('addBookForm');
 const bookList = document.getElementById('bookList');
-const bookCountElement = document.getElementById('bookCount');
 const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const publisherFilter = document.getElementById('publisherFilter');
 
-// --- Управління вікнами ---
+
+// --- Window Management ---
 function toggleDropdown(event) {
     event.stopPropagation();
     document.getElementById('backupDropdown').classList.toggle('show');
@@ -17,9 +24,9 @@ function toggleDropdown(event) {
 
 if (openModalBtn) {
     openModalBtn.onclick = () => {
-        editModeId = null;
         addBookForm.reset();
         document.querySelector('#addBookModal h2').textContent = 'Додати книгу';
+        addBookForm.onsubmit = onAddSubmit; // Restore original 'add' handler
         modal.style.display = "flex";
     };
 }
@@ -34,29 +41,72 @@ window.onclick = (event) => {
     if (event.target === modal) closeModal();
 };
 
-// --- Дані ---
+// --- Data & Rendering ---
 function loadBooks() {
     const data = localStorage.getItem(storageKey);
     books = data ? JSON.parse(data) : [];
-    renderBooks(books);
+    displayBooks();
 }
 
 function saveBooks() {
     localStorage.setItem(storageKey, JSON.stringify(books));
 }
+
+function displayBooks() {
+    let booksToDisplay = [...books];
+
+    // 1. Filter by type
+    if (currentFilterType !== 'all') {
+        booksToDisplay = booksToDisplay.filter(b => (b.type || 'paper') === currentFilterType);
+    }
+
+    // 2. Filter by search
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        booksToDisplay = booksToDisplay.filter(b => 
+            b.title.toLowerCase().includes(query) || 
+            b.author.toLowerCase().includes(query)
+        );
+    }
+
+    // 3. Filter by publisher
+    if (currentPublisher !== 'all') {
+        booksToDisplay = booksToDisplay.filter(b => (b.publisher || '') === currentPublisher);
+    }
+
+    // 4. Sort
+    switch (currentSortOrder) {
+        case 'title-asc':
+            booksToDisplay.sort((a, b) => a.title.localeCompare(b.title));
+            break;
+        case 'title-desc':
+            booksToDisplay.sort((a, b) => b.title.localeCompare(a.title));
+            break;
+        case 'publisher-asc':
+            booksToDisplay.sort((a, b) => (a.publisher || '').localeCompare(b.publisher || ''));
+            break;
+        case 'publisher-desc':
+            booksToDisplay.sort((a, b) => (b.publisher || '').localeCompare(a.publisher || ''));
+            break;
+        case 'date-old':
+            booksToDisplay.sort((a, b) => a.id - b.id);
+            break;
+        case 'date-new':
+        default:
+            booksToDisplay.sort((a, b) => b.id - a.id);
+            break;
+    }
+
+    renderBooks(booksToDisplay);
+}
+
 function renderBooks(arr) {
     bookList.innerHTML = '';
     
-    // Оновлення лічильників на основі відфільтрованого масиву `arr`
-    const total = arr.length;
-    const read = arr.filter(b => b.isRead).length;
-    const ebookCount = arr.filter(b => (b.type || 'paper') === 'ebook').length;
-    const audioCount = arr.filter(b => (b.type || 'paper') === 'audio').length;
-    
-    if (document.getElementById('bookCount')) document.getElementById('bookCount').textContent = total;
-    if (document.getElementById('readCount')) document.getElementById('readCount').textContent = read;
-    if (document.getElementById('ebookCount')) document.getElementById('ebookCount').textContent = ebookCount;
-    if (document.getElementById('audioCount')) document.getElementById('audioCount').textContent = audioCount;
+    document.getElementById('bookCount').textContent = books.length;
+    document.getElementById('readCount').textContent = books.filter(b => b.isRead).length;
+    document.getElementById('ebookCount').textContent = books.filter(b => b.type === 'ebook').length;
+    document.getElementById('audioCount').textContent = books.filter(b => b.type === 'audio').length;
 
     arr.forEach(book => {
         const bookType = book.type || 'paper';
@@ -67,6 +117,7 @@ function renderBooks(arr) {
         
         const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
         const typeIcon = bookType === 'audio' ? '🎧' : (bookType === 'ebook' ? '📱' : '📖');
+        const publisherHTML = book.publisher ? `<p class="publisher">${book.publisher}</p>` : '';
 
         card.innerHTML = `
             ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
@@ -77,133 +128,123 @@ function renderBooks(arr) {
                 <div style="color: #ffca08; font-size: 0.8rem; margin-bottom: 4px;">${stars}</div>
                 <h3>${book.title}</h3>
                 <p>${book.author}</p>
+                ${publisherHTML}
             </div>
         `;
         bookList.appendChild(card);
     });
 }
 
-// --- Дії ---
-addBookForm.onsubmit = (e) => {
+// --- Actions & Event Listeners ---
+const onAddSubmit = (e) => {
     e.preventDefault();
-    const title = document.getElementById('title').value;
-    const author = document.getElementById('author').value;
-    const imageURL = document.getElementById('imageURL').value;
-    
-    const typeSelect = document.getElementById('addBookType'); 
-    const type = typeSelect ? typeSelect.value : 'paper'; 
-
-    if (editModeId) {
-        const i = books.findIndex(b => b.id === editModeId);
-        books[i] = { ...books[i], title, author, imageURL, type };
-        editModeId = null;
-    } else {
-        books.unshift({ 
-            id: Date.now(), 
-            title, 
-            author, 
-            imageURL, 
-            type, 
-            isRead: false, 
-            rating: 0 
-        });
-    }
-    
+    books.unshift({ 
+        id: Date.now(), 
+        title: document.getElementById('title').value, 
+        author: document.getElementById('author').value, 
+        imageURL: document.getElementById('imageURL').value,
+        publisher: document.getElementById('publisher').value,
+        type: 'paper', 
+        isRead: false, 
+        rating: 0 
+    });
     saveBooks();
-    renderBooks(books);
+    displayBooks();
     closeModal();
 };
-
-window.openEditModal = (id) => {
-    const b = books.find(x => x.id === id);
-    editModeId = id;
-    document.getElementById('title').value = b.title;
-    document.getElementById('author').value = b.author;
-    document.getElementById('imageURL').value = b.imageURL;
-    modal.style.display = "flex";
-};
-
-window.deleteBook = (id) => {
-    if (confirm("Видалити книгу?")) {
-        books = books.filter(x => x.id !== id);
-        saveBooks();
-        renderBooks(books);
-    }
-};
+addBookForm.onsubmit = onAddSubmit;
 
 if (searchInput) {
     searchInput.oninput = function() {
-        const val = this.value.toLowerCase();
-        const filtered = books.filter(b => b.title.toLowerCase().includes(val) || b.author.toLowerCase().includes(val));
-        renderBooks(filtered);
+        currentSearchQuery = this.value;
+        displayBooks();
     };
 }
 
-// Імпорт/Експорт
+if (sortSelect) {
+    sortSelect.onchange = function() {
+        currentSortOrder = this.value;
+        displayBooks();
+    };
+}
+
+if (publisherFilter) {
+    publisherFilter.onchange = function() {
+        currentPublisher = this.value;
+        displayBooks();
+    };
+}
+
+window.filterByType = (type) => {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeButton = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${type}'`));
+    if (activeButton) activeButton.classList.add('active');
+    currentFilterType = type;
+    displayBooks();
+};
+
 window.exportBooks = () => {
-    const blob = new Blob([JSON.stringify(books)], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(books, null, 2)], {type: 'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'library.json';
+    a.download = 'library_backup.json';
     a.click();
+    URL.revokeObjectURL(a.href);
 };
 
 window.importBooks = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-        books = JSON.parse(ev.target.result);
-        saveBooks();
-        renderBooks(books);
+        try {
+            const importedBooks = JSON.parse(ev.target.result);
+            if (Array.isArray(importedBooks)) {
+                books = importedBooks;
+                saveBooks();
+                displayBooks();
+            } else {
+                alert('Error: Invalid file format.');
+            }
+        } catch (error) {
+            alert('Error reading file.');
+        }
     };
-    reader.readAsText(e.target.files[0]);
+    reader.readAsText(file);
+    e.target.value = '';
 };
 
-
+// --- Details Modal ---
 let currentDetailsId = null;
 let tempRating = 0;
 
-// 3. Функція фільтрації для вкладок
-window.filterByType = (type) => {
-    // Знімаємо клас active з усіх кнопок і додаємо потрібній
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+function openEditModal(id) {
+    const book = books.find(x => x.id === id);
+    if (!book) return;
 
-    if (type === 'all') {
-        renderBooks(books);
-    } else {
-        const filtered = books.filter(b => (b.type || 'paper') === type);
-        renderBooks(filtered);
-    }
-};
+    document.querySelector('#addBookModal h2').textContent = 'Редагувати книгу';
+    document.getElementById('title').value = book.title;
+    document.getElementById('author').value = book.author;
+    document.getElementById('imageURL').value = book.imageURL || '';
+    document.getElementById('publisher').value = book.publisher || '';
+    
+    addBookForm.onsubmit = (e) => {
+        e.preventDefault();
+        const index = books.findIndex(b => b.id === id);
+        if (index !== -1) {
+            books[index].title = document.getElementById('title').value;
+            books[index].author = document.getElementById('author').value;
+            books[index].imageURL = document.getElementById('imageURL').value;
+            books[index].publisher = document.getElementById('publisher').value;
+            saveBooks();
+            displayBooks();
+            closeModal();
+        }
+    };
+    
+    modal.style.display = "flex";
+}
 
-// 2. Логіка видалення всередині вікна деталей
-document.getElementById('deleteInDetailsBtn').onclick = function() {
-    if (currentDetailsId && confirm("Видалити цю книгу?")) {
-        books = books.filter(x => x.id !== currentDetailsId);
-        saveBooks();
-        renderBooks(books);
-        closeDetailsModal();
-    }
-};
-
-// 3. Перехід до редагування тексту
-document.getElementById('goToEditBtn').onclick = function() {
-    if (currentDetailsId) {
-        const bookId = currentDetailsId;
-        closeDetailsModal();
-        openEditModal(bookId);
-    }
-};
-
-// 2. Логіка для переходу з Деталей в Редагування
-document.getElementById('goToEditBtn').onclick = function() {
-    if (currentDetailsId) {
-        closeDetailsModal();
-        openEditModal(currentDetailsId);
-    }
-};
-
-// Функції для вікна деталей
 window.openDetailsModal = (id) => {
     const book = books.find(b => b.id === id);
     if (!book) return;
@@ -213,14 +254,17 @@ window.openDetailsModal = (id) => {
     
     document.getElementById('detailsTitle').textContent = book.title;
     document.getElementById('detailsAuthor').textContent = book.author;
+    document.getElementById('detailsPublisher').value = book.publisher || '';
     document.getElementById('detailsReadStatus').checked = book.isRead || false;
-    
-    // Встановлюємо правильний тип у випадаючому списку (за замовчуванням paper)
     document.getElementById('detailsBookType').value = book.type || 'paper';
     
     updateStarsUI(tempRating);
     document.getElementById('detailsModal').style.display = "flex";
 };
+
+function closeDetailsModal() {
+    document.getElementById('detailsModal').style.display = "none";
+}
 
 document.querySelectorAll('.star').forEach(star => {
     star.onclick = function() {
@@ -240,17 +284,29 @@ document.getElementById('saveDetailsBtn').onclick = () => {
     if (index !== -1) {
         books[index].isRead = document.getElementById('detailsReadStatus').checked;
         books[index].rating = tempRating;
-        
-        // Зберігаємо змінений тип книги
         books[index].type = document.getElementById('detailsBookType').value;
-        
+        books[index].publisher = document.getElementById('detailsPublisher').value;
         saveBooks();
-        renderBooks(books);
+        displayBooks();
         closeDetailsModal();
     }
 };
 
-function closeDetailsModal() {
-    document.getElementById('detailsModal').style.display = "none";
-}
+document.getElementById('deleteInDetailsBtn').onclick = function() {
+    if (currentDetailsId && confirm("Видалити цю книгу?")) {
+        books = books.filter(x => x.id !== currentDetailsId);
+        saveBooks();
+        displayBooks();
+        closeDetailsModal();
+    }
+};
+
+document.getElementById('goToEditBtn').onclick = function() {
+    if (currentDetailsId) {
+        const bookId = currentDetailsId;
+        closeDetailsModal();
+        openEditModal(bookId);
+    }
+};
+
 document.addEventListener('DOMContentLoaded', loadBooks);
