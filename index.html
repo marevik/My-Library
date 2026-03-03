@@ -46,6 +46,41 @@
         <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
     </div>
 
+    <div class="controls-container">
+        <div class="sort-container">
+            <select id="sortSelect">
+                <option value="date-new">Спочатку нові</option>
+                <option value="date-old">Спочатку старі</option>
+                <option value="title-asc">За назвою (А-Я)</option>
+                <option value="title-desc">За назвою (Я-А)</option>
+                <option value="publisher-asc">За видавництвом (А-Я)</option>
+                <option value="publisher-desc">За видавництвом (Я-Я)</option>
+            </select>
+        </div>
+        <div class="filter-container">
+            <select id="publisherFilter">
+                <option value="all">Всі видавництва</option>
+                <option value="КСД">КСД</option>
+                <option value="Vivat">Vivat</option>
+                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                <option value="Ранок">Ранок</option>
+                <option value="Генеза">Генеза</option>
+                <option value="Наш Формат">Наш Формат</option>
+                <option value="Кристал Бук">Кристал Бук</option>
+                <option value="Стем освіта">Стем освіта</option>
+                <option value="Віхола">Віхола</option>
+                <option value="Лабораторія">Лабораторія</option>
+                <option value="Небо">Небо</option>
+                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                <option value="РМ">РМ</option>
+                <option value="Богдан">Богдан</option>
+                <option value="КМ-Букс">КМ-Букс</option>
+                <option value="Інше">Інше</option>
+                <option value="">Не вказано</option>
+            </select>
+        </div>
+    </div>
+
     <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
 
     <div class="book-list-container" id="bookList"></div>
@@ -59,6 +94,25 @@
                 <input type="text" id="title" placeholder="Назва книги" required>
                 <input type="text" id="author" placeholder="Автор" required>
                 <input type="url" id="imageURL" placeholder="Посилання на обкладинку (URL)">
+                <select id="publisher" style="width: 100%; background: var(--bg-color); border: 1px solid var(--border-color); color: white; padding: 10px; margin: 10px 0; border-radius: 6px; box-sizing: border-box;">
+                    <option value="">Видавництво (необов'язково)</option>
+                    <option value="КСД">КСД</option>
+                    <option value="Vivat">Vivat</option>
+                    <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                    <option value="Ранок">Ранок</option>
+                    <option value="Генеза">Генеза</option>
+                    <option value="Наш Формат">Наш Формат</option>
+                    <option value="Кристал Бук">Кристал Бук</option>
+                    <option value="Стем освіта">Стем освіта</option>
+                    <option value="Віхола">Віхола</option>
+                    <option value="Лабораторія">Лабораторія</option>
+                    <option value="Небо">Небо</option>
+                    <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                    <option value="РМ">РМ</option>
+                    <option value="Богдан">Богдан</option>
+                    <option value="КМ-Букс">КМ-Букс</option>
+                    <option value="Інше">Інше</option>
+                </select>
                 <button type="submit">Зберегти</button>
             </form>
         </div>
@@ -70,6 +124,29 @@
         <h2 id="detailsTitle">Назва книги</h2>
         <p id="detailsAuthor" style="color: var(--text-muted); margin-bottom: 20px;"></p>
         
+        <div style="margin-bottom: 20px;">
+            <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Видавництво:</p>
+            <select id="detailsPublisher" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                <option value="">Не вказано</option>
+                <option value="КСД">КСД</option>
+                <option value="Vivat">Vivat</option>
+                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                <option value="Ранок">Ранок</option>
+                <option value="Генеза">Генеза</option>
+                <option value="Наш Формат">Наш Формат</option>
+                <option value="Кристал Бук">Кристал Бук</option>
+                <option value="Стем освіта">Стем освіта</option>
+                <option value="Віхола">Віхола</option>
+                <option value="Лабораторія">Лабораторія</option>
+                <option value="Небо">Небо</option>
+                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                <option value="РМ">РМ</option>
+                <option value="Богдан">Богдан</option>
+                <option value="КМ-Букс">КМ-Букс</option>
+                <option value="Інше">Інше</option>
+            </select>
+        </div>
+
         <div style="margin: 20px 0;">
             <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
                 <input type="checkbox" id="detailsReadStatus" style="width: 18px; height: 18px;"> 
