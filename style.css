@@ -85,7 +85,7 @@ header h1 {
 }
 
 .search-container {
-    padding: 0px 20px 0px; /* Було 25px зверху, ставимо 10px */
+    padding: 0 15px;
     display: flex;
     justify-content: center;
 }
@@ -177,8 +177,8 @@ header h1 {
 /* АДАПТИВНІСТЬ ДЛЯ МОБІЛЬНИХ — ВИПРАВЛЕНО */
 @media screen and (max-width: 768px) {
     header {
-        padding: 5px 10px; /* Трохи більше з боків для балансу */
-        gap: 5px;
+        padding: 10px 15px;
+        gap: 10px;
     }
 
     .tabs-container {
@@ -434,4 +434,35 @@ header h1 {
     font-size: 0.8rem;
     z-index: 5;
     pointer-events: none;
+}
+
+.controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 15px 15px;
+    gap: 10px;
+}
+
+.sort-container, .filter-container {
+    flex: 1;
+    display: flex;
+}
+
+#sortSelect, #publisherFilter {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-radius: 8px;
+    outline: none;
+    font-size: 0.8rem;
+}
+
+.book-info .publisher {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: -8px;
+    margin-bottom: 12px;
 }
