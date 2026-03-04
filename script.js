@@ -105,6 +105,7 @@ function renderBooks(arr) {
     
     document.getElementById('bookCount').textContent = books.length;
     document.getElementById('readCount').textContent = books.filter(b => b.isRead).length;
+    document.getElementById('paperBookCount').textContent = books.filter(b => b.type === 'paper' || !b.type).length;
     document.getElementById('ebookCount').textContent = books.filter(b => b.type === 'ebook').length;
     document.getElementById('audioCount').textContent = books.filter(b => b.type === 'audio').length;
 
