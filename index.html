@@ -29,6 +29,7 @@
         <div class="count-wrapper">
     <div class="count-item">📚 Усього: <span id="bookCount">0</span></div>
     <div class="count-item">✅ Прочитано: <span id="readCount">0</span></div>
+    <div class="count-item">📖 Паперові: <span id="paperBookCount">0</span></div>
     <div class="count-item">📱 Е-книги: <span id="ebookCount">0</span></div>
     <div class="count-item">🎧 Аудіо: <span id="audioCount">0</span></div>
 </div>
@@ -60,21 +61,26 @@
         <div class="filter-container">
             <select id="publisherFilter">
                 <option value="all">Всі видавництва</option>
-                <option value="КСД">КСД</option>
-                <option value="Vivat">Vivat</option>
-                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
-                <option value="Ранок">Ранок</option>
-                <option value="Генеза">Генеза</option>
-                <option value="Наш Формат">Наш Формат</option>
-                <option value="Кристал Бук">Кристал Бук</option>
-                <option value="Стем освіта">Стем освіта</option>
-                <option value="Віхола">Віхола</option>
-                <option value="Лабораторія">Лабораторія</option>
-                <option value="Небо">Небо</option>
-                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
-                <option value="РМ">РМ</option>
+                <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
+                <option value="Апріорі">Апріорі</option>
+                <option value="Астролябія">Астролябія</option>
                 <option value="Богдан">Богдан</option>
-                <option value="КМ-Букс">КМ-Букс</option>
+                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                <option value="Віхола">Віхола</option>
+                <option value="Жорж">Жорж</option>
+                <option value="Книголав">Книголав</option>
+                <option value="КСД">КСД</option>
+                <option value="Лабораторія">Лабораторія</option>
+                <option value="Наш Формат">Наш Формат</option>
+                <option value="Небо">Небо</option>
+                <option value="Ранок">Ранок</option>
+                <option value="РМ">РМ</option>
+                <option value="ARTBOOKS">ARTBOOKS</option>
+                <option value="Bookchef">Bookchef</option>
+                <option value="READBERRY">READBERRY</option>
+                <option value="Stone Publishing">Stone Publishing</option>
+                <option value="Vivat">Vivat</option>
                 <option value="Інше">Інше</option>
                 <option value="">Не вказано</option>
             </select>
@@ -96,21 +102,26 @@
                 <input type="url" id="imageURL" placeholder="Посилання на обкладинку (URL)">
                 <select id="publisher" style="width: 100%; background: var(--bg-color); border: 1px solid var(--border-color); color: white; padding: 10px; margin: 10px 0; border-radius: 6px; box-sizing: border-box;">
                     <option value="">Видавництво (необов'язково)</option>
-                    <option value="КСД">КСД</option>
-                    <option value="Vivat">Vivat</option>
-                    <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
-                    <option value="Ранок">Ранок</option>
-                    <option value="Генеза">Генеза</option>
-                    <option value="Наш Формат">Наш Формат</option>
-                    <option value="Кристал Бук">Кристал Бук</option>
-                    <option value="Стем освіта">Стем освіта</option>
-                    <option value="Віхола">Віхола</option>
-                    <option value="Лабораторія">Лабораторія</option>
-                    <option value="Небо">Небо</option>
-                    <option value="Бородатий Тамарин">Бородатий Тамарин</option>
-                    <option value="РМ">РМ</option>
+                    <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
+                    <option value="Апріорі">Апріорі</option>
+                    <option value="Астролябія">Астролябія</option>
                     <option value="Богдан">Богдан</option>
-                    <option value="КМ-Букс">КМ-Букс</option>
+                    <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                    <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                    <option value="Віхола">Віхола</option>
+                    <option value="Жорж">Жорж</option>
+                    <option value="Книголав">Книголав</option>
+                    <option value="КСД">КСД</option>
+                    <option value="Лабораторія">Лабораторія</option>
+                    <option value="Наш Формат">Наш Формат</option>
+                    <option value="Небо">Небо</option>
+                    <option value="Ранок">Ранок</option>
+                    <option value="РМ">РМ</option>
+                    <option value="ARTBOOKS">ARTBOOKS</option>
+                    <option value="Bookchef">Bookchef</option>
+                    <option value="READBERRY">READBERRY</option>
+                    <option value="Stone Publishing">Stone Publishing</option>
+                    <option value="Vivat">Vivat</option>
                     <option value="Інше">Інше</option>
                 </select>
                 <button type="submit">Зберегти</button>
@@ -128,21 +139,26 @@
             <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Видавництво:</p>
             <select id="detailsPublisher" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
                 <option value="">Не вказано</option>
-                <option value="КСД">КСД</option>
-                <option value="Vivat">Vivat</option>
-                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
-                <option value="Ранок">Ранок</option>
-                <option value="Генеза">Генеза</option>
-                <option value="Наш Формат">Наш Формат</option>
-                <option value="Кристал Бук">Кристал Бук</option>
-                <option value="Стем освіта">Стем освіта</option>
-                <option value="Віхола">Віхола</option>
-                <option value="Лабораторія">Лабораторія</option>
-                <option value="Небо">Небо</option>
-                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
-                <option value="РМ">РМ</option>
+                <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
+                <option value="Апріорі">Апріорі</option>
+                <option value="Астролябія">Астролябія</option>
                 <option value="Богдан">Богдан</option>
-                <option value="КМ-Букс">КМ-Букс</option>
+                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                <option value="Віхола">Віхола</option>
+                <option value="Жорж">Жорж</option>
+                <option value="Книголав">Книголав</option>
+                <option value="КСД">КСД</option>
+                <option value="Лабораторія">Лабораторія</option>
+                <option value="Наш Формат">Наш Формат</option>
+                <option value="Небо">Небо</option>
+                <option value="Ранок">Ранок</option>
+                <option value="РМ">РМ</option>
+                <option value="ARTBOOKS">ARTBOOKS</option>
+                <option value="Bookchef">Bookchef</option>
+                <option value="READBERRY">READBERRY</option>
+                <option value="Stone Publishing">Stone Publishing</option>
+                <option value="Vivat">Vivat</option>
                 <option value="Інше">Інше</option>
             </select>
         </div>
