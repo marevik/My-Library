@@ -14,6 +14,70 @@
     <link rel="apple-touch-icon" href="app_icon.png">
 
     <link rel="stylesheet" href="style.css?v=1.3">
+    <style>
+        #autocomplete-suggestions {
+            position: relative;
+            z-index: 2001; /* Should be on top of the modal */
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--card-bg);
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        .autocomplete-item:hover {
+            background-color: var(--border-color);
+        }
+        .autocomplete-item strong {
+            color: var(--accent-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .stat-card-full {
+            grid-column: 1 / -1;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .list-stat h4 {
+            margin-top: 0;
+            color: var(--accent-color);
+        }
+        .list-stat ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+        .list-stat li {
+            margin-bottom: 8px;
+        }
+        .rating-distribution .bar {
+            height: 18px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 </head>
 <body>
 
@@ -26,70 +90,10 @@
             </div>
         </div>
         
-        <div class="count-wrapper">
-    <div class="count-item">📚 Усього: <span id="bookCount">0</span></div>
-    <div class="count-item">✅ Прочитано: <span id="readCount">0</span></div>
-    <div class="count-item">📖 Паперові: <span id="paperBookCount">0</span></div>
-    <div class="count-item">📱 Е-книги: <span id="ebookCount">0</span></div>
-    <div class="count-item">🎧 Аудіо: <span id="audioCount">0</span></div>
-</div>
         <button id="openModalBtn">📚 Додати</button>
     </header>
-<div class="tabs-container">
-    <button class="tab-btn active" onclick="filterByType('all')">Всі</button>
-    <button class="tab-btn" onclick="filterByType('paper')">📖 Паперові</button>
-    <button class="tab-btn" onclick="filterByType('ebook')">📱 Е-книги</button>
-    <button class="tab-btn" onclick="filterByType('audio')">🎧 Аудіо</button>
-</div>
-
-
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
-    </div>
-
-    <div class="controls-container">
-        <div class="sort-container">
-            <select id="sortSelect">
-                <option value="date-new">Спочатку нові</option>
-                <option value="date-old">Спочатку старі</option>
-                <option value="title-asc">За назвою (А-Я)</option>
-                <option value="title-desc">За назвою (Я-А)</option>
-                <option value="publisher-asc">За видавництвом (А-Я)</option>
-                <option value="publisher-desc">За видавництвом (Я-Я)</option>
-            </select>
-        </div>
-        <div class="filter-container">
-            <select id="publisherFilter">
-                <option value="all">Всі видавництва</option>
-                <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
-                <option value="Апріорі">Апріорі</option>
-                <option value="Астролябія">Астролябія</option>
-                <option value="Богдан">Богдан</option>
-                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
-                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
-                <option value="Віхола">Віхола</option>
-                <option value="Жорж">Жорж</option>
-                <option value="Книголав">Книголав</option>
-                <option value="КСД">КСД</option>
-                <option value="Лабораторія">Лабораторія</option>
-                <option value="Наш Формат">Наш Формат</option>
-                <option value="Небо">Небо</option>
-                <option value="Ранок">Ранок</option>
-                <option value="РМ">РМ</option>
-                <option value="ARTBOOKS">ARTBOOKS</option>
-                <option value="Bookchef">Bookchef</option>
-                <option value="READBERRY">READBERRY</option>
-                <option value="Stone Publishing">Stone Publishing</option>
-                <option value="Vivat">Vivat</option>
-                <option value="Інше">Інше</option>
-                <option value="">Не вказано</option>
-            </select>
-        </div>
-    </div>
 
     <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
-
-    <div class="book-list-container" id="bookList"></div>
 
     <div id="addBookModal" class="modal">
         <div class="modal-content">
@@ -98,7 +102,9 @@
             
             <form id="addBookForm">
                 <input type="text" id="title" placeholder="Назва книги" required>
+                <div id="autocomplete-suggestions"></div>
                 <input type="text" id="author" placeholder="Автор" required>
+                <img id="cover-preview" src="" alt="Preview" style="display: none; max-height: 150px; margin: 0 auto 10px; border-radius: 8px;" onerror="this.style.display='none'">
                 <input type="url" id="imageURL" placeholder="Посилання на обкладинку (URL)">
                 <select id="publisher" style="width: 100%; background: var(--bg-color); border: 1px solid var(--border-color); color: white; padding: 10px; margin: 10px 0; border-radius: 6px; box-sizing: border-box;">
                     <option value="">Видавництво (необов'язково)</option>
@@ -130,70 +136,178 @@
     </div>
 
     <div id="detailsModal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeDetailsModal()">&times;</span>
-        <h2 id="detailsTitle">Назва книги</h2>
-        <p id="detailsAuthor" style="color: var(--text-muted); margin-bottom: 20px;"></p>
-        
-        <div style="margin-bottom: 20px;">
-            <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Видавництво:</p>
-            <select id="detailsPublisher" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-                <option value="">Не вказано</option>
-                <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
-                <option value="Апріорі">Апріорі</option>
-                <option value="Астролябія">Астролябія</option>
-                <option value="Богдан">Богдан</option>
-                <option value="Бородатий Тамарин">Бородатий Тамарин</option>
-                <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
-                <option value="Віхола">Віхола</option>
-                <option value="Жорж">Жорж</option>
-                <option value="Книголав">Книголав</option>
-                <option value="КСД">КСД</option>
-                <option value="Лабораторія">Лабораторія</option>
-                <option value="Наш Формат">Наш Формат</option>
-                <option value="Небо">Небо</option>
-                <option value="Ранок">Ранок</option>
-                <option value="РМ">РМ</option>
-                <option value="ARTBOOKS">ARTBOOKS</option>
-                <option value="Bookchef">Bookchef</option>
-                <option value="READBERRY">READBERRY</option>
-                <option value="Stone Publishing">Stone Publishing</option>
-                <option value="Vivat">Vivat</option>
-                <option value="Інше">Інше</option>
-            </select>
-        </div>
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeDetailsModal()">&times;</span>
+            <h2 id="detailsTitle">Назва книги</h2>
+            <p id="detailsAuthor" style="color: var(--text-muted); margin-bottom: 20px;"></p>
+            
+            <div style="margin-bottom: 20px;">
+                <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Видавництво:</p>
+                <select id="detailsPublisher" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                    <option value="">Не вказано</option>
+                    <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
+                    <option value="Апріорі">Апріорі</option>
+                    <option value="Астролябія">Астролябія</option>
+                    <option value="Богдан">Богдан</option>
+                    <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                    <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                    <option value="Віхола">Віхола</option>
+                    <option value="Жорж">Жорж</option>
+                    <option value="Книголав">Книголав</option>
+                    <option value="КСД">КСД</option>
+                    <option value="Лабораторія">Лабораторія</option>
+                    <option value="Наш Формат">Наш Формат</option>
+                    <option value="Небо">Небо</option>
+                    <option value="Ранок">Ранок</option>
+                    <option value="РМ">РМ</option>
+                    <option value="ARTBOOKS">ARTBOOKS</option>
+                    <option value="Bookchef">Bookchef</option>
+                    <option value="READBERRY">READBERRY</option>
+                    <option value="Stone Publishing">Stone Publishing</option>
+                    <option value="Vivat">Vivat</option>
+                    <option value="Інше">Інше</option>
+                </select>
+            </div>
 
-        <div style="margin: 20px 0;">
-            <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                <input type="checkbox" id="detailsReadStatus" style="width: 18px; height: 18px;"> 
-                <span>Прочитано</span>
-            </label>
-        </div>
+            <div style="margin: 20px 0;">
+                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" id="detailsReadStatus" style="width: 18px; height: 18px;"> 
+                    <span>Прочитано</span>
+                </label>
+            </div>
 
-        <div id="starsInput" style="font-size: 1.8rem; color: #ffca08; cursor: pointer; margin-bottom: 20px;">
-            <span class="star" data-value="1">☆</span>
-            <span class="star" data-value="2">☆</span>
-            <span class="star" data-value="3">☆</span>
-            <span class="star" data-value="4">☆</span>
-            <span class="star" data-value="5">☆</span>
-        </div>
-<div style="margin-bottom: 20px;">
-    <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Тип книги:</p>
-    <select id="detailsBookType" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
-        <option value="paper">📖 Паперова</option>
-        <option value="ebook">📱 Електронна</option>
-        <option value="audio">🎧 Аудіокнига</option>
-    </select>
-</div>
-        <button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
-        
-        <div style="display: flex; gap: 10px;">
-            <button id="goToEditBtn" style="flex: 2; padding: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">⚙️ Редагувати</button>
-            <button id="deleteInDetailsBtn" style="flex: 1; padding: 10px; background: rgba(248, 81, 73, 0.1); color: var(--danger); border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🗑 Вид.</button>
+            <div id="starsInput" style="font-size: 1.8rem; color: #ffca08; cursor: pointer; margin-bottom: 20px;">
+                <span class="star" data-value="1">☆</span>
+                <span class="star" data-value="2">☆</span>
+                <span class="star" data-value="3">☆</span>
+                <span class="star" data-value="4">☆</span>
+                <span class="star" data-value="5">☆</span>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <p style="margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Тип книги:</p>
+                <select id="detailsBookType" style="width: 100%; padding: 10px; background: var(--bg-color); color: white; border: 1px solid var(--border-color); border-radius: 8px; outline: none;">
+                    <option value="paper">📖 Паперова</option>
+                    <option value="ebook">📱 Електронна</option>
+                    <option value="audio">🎧 Аудіокнига</option>
+                </select>
+            </div>
+            <button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="goToEditBtn" style="flex: 2; padding: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">⚙️ Редагувати</button>
+                <button id="deleteInDetailsBtn" style="flex: 1; padding: 10px; background: rgba(248, 81, 73, 0.1); color: var(--danger); border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🗑 Вид.</button>
+            </div>
         </div>
     </div>
-</div>
 
+<main id="main-content">
+    <section id="home-section" class="app-section">
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="filterByType('all')">Всі</button>
+            <button class="tab-btn" onclick="filterByType('paper')">📖 Паперові</button>
+            <button class="tab-btn" onclick="filterByType('ebook')">📱 Е-книги</button>
+            <button class="tab-btn" onclick="filterByType('audio')">🎧 Аудіо</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
+        </div>
+
+        <div class="controls-container">
+            <div class="sort-container">
+                <select id="sortSelect">
+                    <option value="date-new">Спочатку нові</option>
+                    <option value="date-old">Спочатку старі</option>
+                    <option value="title-asc">За назвою (А-Я)</option>
+                    <option value="title-desc">За назвою (Я-А)</option>
+                    <option value="publisher-asc">За видавництвом (А-Я)</option>
+                    <option value="publisher-desc">За видавництвом (Я-Я)</option>
+                </select>
+            </div>
+            <div class="filter-container">
+                <select id="publisherFilter">
+                    <option value="all">Всі видавництва</option>
+                    <option value="А-БА-БА-ГА-ЛА-МА-ГА">А-БА-БА-ГА-ЛА-МА-ГА</option>
+                    <option value="Апріорі">Апріорі</option>
+                    <option value="Астролябія">Астролябія</option>
+                    <option value="Богдан">Богдан</option>
+                    <option value="Бородатий Тамарин">Бородатий Тамарин</option>
+                    <option value="Видавництво Старого Лева">Видавництво Старого Лева</option>
+                    <option value="Віхола">Віхола</option>
+                    <option value="Жорж">Жорж</option>
+                    <option value="Книголав">Книголав</option>
+                    <option value="КСД">КСД</option>
+                    <option value="Лабораторія">Лабораторія</option>
+                    <option value="Наш Формат">Наш Формат</option>
+                    <option value="Небо">Небо</option>
+                    <option value="Ранок">Ранок</option>
+                    <option value="РМ">РМ</option>
+                    <option value="ARTBOOKS">ARTBOOKS</option>
+                    <option value="Bookchef">Bookchef</option>
+                    <option value="READBERRY">READBERRY</option>
+                    <option value="Stone Publishing">Stone Publishing</option>
+                    <option value="Vivat">Vivat</option>
+                    <option value="Інше">Інше</option>
+                    <option value="">Не вказано</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="book-list-container" id="bookList"></div>
+    </section>
+
+    <section id="scanner-section" class="app-section" style="display:none;">
+        <div class="scanner-container">
+            <h2>Сканування ISBN</h2>
+            <div id="interactive" class="viewport"></div>
+            <p>Наведіть камеру на штрих-код книги</p>
+        </div>
+    </section>
+
+    <section id="stats-section" class="app-section" style="display:none;">
+        <div class="stats-container" style="padding: 0 15px;">
+            <h2>Статистика бібліотеки</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">📚 Усього: <br><span id="statTotal" style="font-size: 1.5em; font-weight: bold;">0</span></div>
+                <div class="stat-card">✅ Прочитано: <br><span id="statRead" style="font-size: 1.5em; font-weight: bold;">0</span></div>
+                <div class="stat-card">📖 Паперові: <span id="statPaper">0</span></div>
+                <div class="stat-card">📱 Е-книги: <span id="statEbook">0</span></div>
+                <div class="stat-card">🎧 Аудіо: <span id="statAudio">0</span></div>
+                <div class="stat-card">⭐ Сер. рейтинг: <br><span id="statAvgRating" style="font-size: 1.5em; font-weight: bold;">0</span></div>
+            </div>
+
+            <div class="stat-card-full list-stat" id="topAuthorsCard">
+                <h4>🏆 Топ Автори</h4>
+                <ul id="statTopAuthors"></ul>
+            </div>
+
+            <div class="stat-card-full list-stat" id="topPublishersCard">
+                <h4>🏢 Топ Видавництва</h4>
+                <ul id="statTopPublishers"></ul>
+            </div>
+
+            <div class="stat-card-full" id="ratingDistCard">
+                <h4>📊 Розподіл Рейтингів</h4>
+                <div id="ratingDist"></div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchSection('home')">
+        <span>🏠</span>
+        <p>Home</p>
+    </button>
+    <button class="nav-item" onclick="switchSection('scanner')">
+        <div class="scan-circle">📸</div>
+    </button>
+    <button class="nav-item" onclick="switchSection('stats')">
+        <span>📊</span>
+        <p>Stats</p>
+    </button>
+</nav>
     <script src="script.js?v=1.2"></script>
 </body>
 </html>
