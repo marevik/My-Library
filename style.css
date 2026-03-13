@@ -15,6 +15,11 @@ body {
     padding: 0;
     background-color: var(--bg-color);
     color: var(--text-main);
+    overflow-x: hidden;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
 header {
@@ -332,23 +337,6 @@ header h1 {
     }
 }
 
-/* Контейнер для вертикального списку */
-.count-wrapper {
-    display: flex;
-    flex-direction: column; /* Елементи один під одним */
-    justify-content: center;
-    gap: 2px;
-    margin: 0 10px;
-}
-
-.count-item {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-    line-height: 1.2;
-    font-weight: 300;
-}
-
 /* Адаптація хедера для мобільних */
 @media screen and (max-width: 768px) {
     header {
@@ -465,4 +453,84 @@ header h1 {
     color: var(--text-muted);
     margin-top: -8px;
     margin-bottom: 12px;
+}
+
+#interactive.viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 2px solid var(--accent-color);
+    margin: 10px 0;
+}
+#interactive.viewport canvas, video {
+    width: 100%;
+    height: auto;
+}
+/* Лазерна лінія для прицілювання */
+#interactive.viewport::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 10%; width: 80%; height: 2px;
+    background: rgba(255, 0, 0, 0.5);
+    box-shadow: 0 0 8px red;
+}
+/* Нижня панель */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background: var(--header-bg);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom); /* Для iPhone з "бровкою" */
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.nav-item.active {
+    color: var(--accent-color);
+}
+
+/* Центральна кнопка сканера */
+.scan-circle {
+    width: 55px;
+    height: 55px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    color: white;
+    margin-top: -30px; /* Виступає над панеллю */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+/* Секції */
+.app-section {
+    padding-bottom: 80px; /* Місце для панелі */
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 20px;
+    margin: 10px;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    text-align: center;
 }
