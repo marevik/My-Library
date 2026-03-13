@@ -14,6 +14,7 @@ const bookList = document.getElementById('bookList');
 const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
 const publisherFilter = document.getElementById('publisherFilter');
+const coverPreview = document.getElementById('cover-preview');
 
 
 // --- Window Management ---
@@ -27,11 +28,15 @@ if (openModalBtn) {
         addBookForm.reset();
         document.querySelector('#addBookModal h2').textContent = 'Додати книгу';
         addBookForm.onsubmit = onAddSubmit; // Restore original 'add' handler
+        updateCoverPreview(''); // Clear preview
         modal.style.display = "flex";
     };
 }
 
-function closeModal() { modal.style.display = "none"; }
+function closeModal() { 
+    modal.style.display = "none"; 
+    updateCoverPreview(''); // Clear preview on close
+}
 
 window.onclick = (event) => {
     if (!event.target.closest('.title-wrapper')) {
@@ -103,12 +108,6 @@ function displayBooks() {
 function renderBooks(arr) {
     bookList.innerHTML = '';
     
-    document.getElementById('bookCount').textContent = books.length;
-    document.getElementById('readCount').textContent = books.filter(b => b.isRead).length;
-    document.getElementById('paperBookCount').textContent = books.filter(b => b.type === 'paper' || !b.type).length;
-    document.getElementById('ebookCount').textContent = books.filter(b => b.type === 'ebook').length;
-    document.getElementById('audioCount').textContent = books.filter(b => b.type === 'audio').length;
-
     arr.forEach(book => {
         const bookType = book.type || 'paper';
         
@@ -219,6 +218,16 @@ window.importBooks = (e) => {
 let currentDetailsId = null;
 let tempRating = 0;
 
+function updateCoverPreview(url) {
+    if (url) {
+        coverPreview.src = url;
+        coverPreview.style.display = 'block';
+    } else {
+        coverPreview.src = '';
+        coverPreview.style.display = 'none';
+    }
+}
+
 function openEditModal(id) {
     const book = books.find(x => x.id === id);
     if (!book) return;
@@ -228,6 +237,8 @@ function openEditModal(id) {
     document.getElementById('author').value = book.author;
     document.getElementById('imageURL').value = book.imageURL || '';
     document.getElementById('publisher').value = book.publisher || '';
+    
+    updateCoverPreview(book.imageURL || ''); // Show existing cover
     
     addBookForm.onsubmit = (e) => {
         e.preventDefault();
@@ -280,6 +291,172 @@ function updateStarsUI(rating) {
     });
 }
 
+function startScanner() {
+    if (typeof Quagga === 'undefined') {
+        alert('Scanner library not loaded!');
+        return;
+    }
+
+    Quagga.init({
+        inputStream : {
+            name : "Live",
+            type : "LiveStream",
+            target: document.querySelector('#interactive'),
+            constraints: {
+                width: 480,
+                height: 320,
+                facingMode: "environment" // 'user' for front camera
+            },
+        },
+        decoder : {
+            readers : ["ean_reader"]
+        },
+        locate: true, // try to locate barcodes in the image
+    }, function(err) {
+        if (err) {
+            console.error(err);
+            alert("Error starting scanner: " + err);
+            return;
+        }
+        console.log("Initialization finished. Ready to start");
+        Quagga.start();
+    });
+
+    Quagga.onDetected(function(result) {
+        var code = result.codeResult.code;
+        
+        // Stop the scanner
+        Quagga.stop();
+
+        // Switch back to home screen to show the modal
+        switchSection('home');
+        
+        // Fetch book info from Google Books API
+        fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.items && data.items.length > 0) {
+                    const book = data.items[0].volumeInfo;
+                    
+                    // Pre-fill the add book form
+                    document.getElementById('title').value = book.title || '';
+                    document.getElementById('author').value = book.authors ? book.authors.join(', ') : '';
+                    document.getElementById('imageURL').value = book.imageLinks ? book.imageLinks.thumbnail : '';
+                    
+                    // Open the add book modal
+                    document.querySelector('#addBookModal h2').textContent = 'Додати знайдену книгу';
+                    addBookForm.onsubmit = onAddSubmit;
+                    modal.style.display = "flex";
+                } else {
+                    alert(`Книгу з ISBN ${code} не знайдено.`);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching book data:', error);
+                alert('Помилка при пошуку книги.');
+            });
+    });
+}
+
+function switchSection(sectionId) {
+    // Hide all app sections
+    document.querySelectorAll('.app-section').forEach(s => s.style.display = 'none');
+    
+    // Show the selected section
+    const activeSection = document.getElementById(sectionId + '-section');
+    if (activeSection) {
+        activeSection.style.display = 'block';
+    }
+
+    // Update active state on nav buttons
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick').includes(`'${sectionId}'`)) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Handle scanner state
+    if (sectionId === 'scanner') {
+        startScanner();
+    } else {
+        if (typeof Quagga !== 'undefined' && Quagga.running) {
+            Quagga.stop();
+        }
+    }
+    
+    // Update stats when switching to the stats section
+    if (sectionId === 'stats') {
+        updateStats();
+    }
+}
+
+function updateStats() {
+    // Basic stats
+    document.getElementById('statTotal').textContent = books.length;
+    document.getElementById('statRead').textContent = books.filter(b => b.isRead).length;
+    document.getElementById('statPaper').textContent = books.filter(b => b.type === 'paper' || !b.type).length;
+    document.getElementById('statEbook').textContent = books.filter(b => b.type === 'ebook').length;
+    document.getElementById('statAudio').textContent = books.filter(b => b.type === 'audio').length;
+
+    // Average Rating
+    const ratedBooks = books.filter(b => b.rating > 0);
+    const avgRating = ratedBooks.length > 0
+        ? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
+        : 'N/A';
+    document.getElementById('statAvgRating').textContent = avgRating;
+
+    // Helper for Top Authors/Publishers
+    const getTopItems = (items, limit = 3) => {
+        const counts = items.reduce((acc, item) => {
+            if (item) acc[item] = (acc[item] || 0) + 1;
+            return acc;
+        }, {});
+        return Object.entries(counts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, limit);
+    };
+
+    // Top Authors
+    const authors = books.map(b => b.author);
+    const topAuthors = getTopItems(authors);
+    const topAuthorsList = document.getElementById('statTopAuthors');
+    topAuthorsList.innerHTML = topAuthors.length > 0 
+        ? topAuthors.map(a => `<li>${a[0]} <span style="color: var(--text-muted)">(${a[1]})</span></li>`).join('')
+        : '<li>Немає даних</li>';
+    document.getElementById('topAuthorsCard').style.display = authors.some(a => a) ? 'block' : 'none';
+
+    // Top Publishers
+    const publishers = books.map(b => b.publisher);
+    const topPublishers = getTopItems(publishers);
+    const topPublishersList = document.getElementById('statTopPublishers');
+    topPublishersList.innerHTML = topPublishers.length > 0
+        ? topPublishers.map(p => `<li>${p[0]} <span style="color: var(--text-muted)">(${p[1]})</span></li>`).join('')
+        : '<li>Немає даних</li>';
+    document.getElementById('topPublishersCard').style.display = publishers.some(p => p) ? 'block' : 'none';
+
+    // Rating Distribution
+    const ratingDist = [1, 2, 3, 4, 5].reduce((acc, rating) => {
+        acc[rating] = books.filter(b => b.rating === rating).length;
+        return acc;
+    }, {});
+    const maxRatingCount = Math.max(...Object.values(ratingDist));
+    const ratingDistContainer = document.getElementById('ratingDist');
+    ratingDistContainer.innerHTML = Object.entries(ratingDist).map(([rating, count]) => {
+        const width = maxRatingCount > 0 ? (count / maxRatingCount) * 100 : 0;
+        return `
+            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                <span style="width: 25px;">${'★'.repeat(rating)}</span>
+                <div style="flex: 1; background: var(--border-color); border-radius: 4px; overflow: hidden;">
+                    <div class="bar" style="width: ${width}%;"></div>
+                </div>
+                <span style="width: 30px; text-align: right; color: var(--text-muted);">${count}</span>
+            </div>
+        `;
+    }).join('');
+    document.getElementById('ratingDistCard').style.display = ratedBooks.length > 0 ? 'block' : 'none';
+}
+
 document.getElementById('saveDetailsBtn').onclick = () => {
     const index = books.findIndex(b => b.id === currentDetailsId);
     if (index !== -1) {
@@ -309,5 +486,90 @@ document.getElementById('goToEditBtn').onclick = function() {
         openEditModal(bookId);
     }
 };
+
+// --- Autocomplete ---
+let autocompleteTimeout;
+let currentSuggestions = [];
+const titleInput = document.getElementById('title');
+const authorInput = document.getElementById('author');
+const imageURLInput = document.getElementById('imageURL');
+const suggestionsContainer = document.getElementById('autocomplete-suggestions');
+
+imageURLInput.addEventListener('input', () => {
+    updateCoverPreview(imageURLInput.value);
+});
+
+function debounce(func, delay) {
+    clearTimeout(autocompleteTimeout);
+    autocompleteTimeout = setTimeout(func, delay);
+}
+
+titleInput.addEventListener('input', () => {
+    debounce(fetchAutocompleteSuggestions, 300);
+});
+
+function fetchAutocompleteSuggestions() {
+    const query = titleInput.value;
+    if (query.length < 3) {
+        clearSuggestions();
+        return;
+    }
+
+    fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.items) {
+                currentSuggestions = data.items;
+                renderAutocompleteSuggestions(data.items);
+            } else {
+                clearSuggestions();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching suggestions:', error);
+            clearSuggestions();
+        });
+}
+
+function renderAutocompleteSuggestions(suggestions) {
+    suggestionsContainer.innerHTML = '';
+    const itemsWrapper = document.createElement('div');
+    itemsWrapper.className = 'autocomplete-items';
+
+    suggestions.forEach((book, index) => {
+        const item = document.createElement('div');
+        item.className = 'autocomplete-item';
+        item.innerHTML = `
+            <strong>${book.volumeInfo.title}</strong>
+            <small>${book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'Unknown Author'}</small>
+        `;
+        item.addEventListener('click', () => onSuggestionClick(index));
+        itemsWrapper.appendChild(item);
+    });
+    suggestionsContainer.appendChild(itemsWrapper);
+}
+
+function onSuggestionClick(index) {
+    const selectedBook = currentSuggestions[index].volumeInfo;
+    titleInput.value = selectedBook.title || '';
+    authorInput.value = selectedBook.authors ? selectedBook.authors.join(', ') : '';
+    const imageUrl = selectedBook.imageLinks ? selectedBook.imageLinks.thumbnail : '';
+    imageURLInput.value = imageUrl;
+    updateCoverPreview(imageUrl);
+    clearSuggestions();
+}
+
+function clearSuggestions() {
+    suggestionsContainer.innerHTML = '';
+    currentSuggestions = [];
+}
+
+// Close suggestions when clicking outside
+document.addEventListener('click', function(event) {
+    if (!suggestionsContainer.contains(event.target) && event.target !== titleInput) {
+        clearSuggestions();
+    }
+});
+
 
 document.addEventListener('DOMContentLoaded', loadBooks);
