@@ -59,7 +59,7 @@ function saveBooks() {
 
 function displayBooks() {
     let booksToDisplay = [...books];
-
+        booksToDisplay = booksToDisplay.filter(b => !b.inWishlist);
     // 1. Filter by type
     if (currentFilterType !== 'all') {
         booksToDisplay = booksToDisplay.filter(b => (b.type || 'paper') === currentFilterType);
@@ -269,7 +269,7 @@ window.openDetailsModal = (id) => {
     document.getElementById('detailsPublisher').value = book.publisher || '';
     document.getElementById('detailsReadStatus').checked = book.isRead || false;
     document.getElementById('detailsBookType').value = book.type || 'paper';
-    
+    updateWishlistBtn(book.inWishlist || false);
     updateStarsUI(tempRating);
     document.getElementById('detailsModal').style.display = "flex";
 };
@@ -389,6 +389,9 @@ function switchSection(sectionId) {
     if (sectionId === 'stats') {
         updateStats();
     }
+    if (sectionId === 'wishlist') {
+    renderWishlist();
+}
 }
 
 function updateStats() {
@@ -486,6 +489,29 @@ document.getElementById('goToEditBtn').onclick = function() {
         openEditModal(bookId);
     }
 };
+document.getElementById('wishlistToggleBtn').onclick = function() {
+    const index = books.findIndex(b => b.id === currentDetailsId);
+    if (index !== -1) {
+        books[index].inWishlist = !books[index].inWishlist;
+        saveBooks();
+        displayBooks();
+        renderWishlist();
+        updateWishlistBtn(books[index].inWishlist);
+    }
+};
+
+function updateWishlistBtn(isInWishlist) {
+    const btn = document.getElementById('wishlistToggleBtn');
+    if (isInWishlist) {
+        btn.textContent = '💔 Видалити зі списку';
+        btn.style.color = '#f85149';
+        btn.style.borderColor = 'rgba(248,81,73,0.3)';
+    } else {
+        btn.textContent = '❤️ В список бажань';
+        btn.style.color = 'var(--text-muted)';
+        btn.style.borderColor = 'var(--border-color)';
+    }
+}
 
 // --- Autocomplete ---
 let autocompleteTimeout;
@@ -570,6 +596,33 @@ document.addEventListener('click', function(event) {
         clearSuggestions();
     }
 });
+// --- Wishlist ---
+function renderWishlist() {
+    const wishlistBooks = books.filter(b => b.inWishlist);
+    const container = document.getElementById('wishlistList');
+    container.innerHTML = '';
+    
+    if (wishlistBooks.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 40px;">Список порожній. Додайте книги через кнопку ❤️</p>';
+        return;
+    }
 
+    wishlistBooks.forEach(book => {
+        const card = document.createElement('div');
+        card.className = 'book-card';
+        card.addEventListener('click', () => openDetailsModal(book.id));
+        card.innerHTML = `
+            <div class="type-badge">❤️</div>
+            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
+                 onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
+            <div class="book-info">
+                <h3>${book.title}</h3>
+                <p>${book.author}</p>
+                ${book.publisher ? `<p class="publisher">${book.publisher}</p>` : ''}
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
 
 document.addEventListener('DOMContentLoaded', loadBooks);
