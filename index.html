@@ -89,8 +89,10 @@
                 <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
             </div>
         </div>
-        
+         <div style="display: flex; gap: 8px;">
+        <button onclick="switchSection('scanner')" style="background: var(--card-bg); color: white; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer;">📸</button>
         <button id="openModalBtn">📚 Додати</button>
+    </div>
     </header>
 
     <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
@@ -192,12 +194,16 @@
                 </select>
             </div>
             <button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
-            
+            <button id="wishlistToggleBtn" style="width: 100%; padding: 10px; margin-bottom: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">❤️ В список бажань</button>
+
+<button id="saveDetailsBtn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 15px;">Зберегти зміни</button>
+
             <div style="display: flex; gap: 10px;">
                 <button id="goToEditBtn" style="flex: 2; padding: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-size: 0.85rem;">⚙️ Редагувати</button>
                 <button id="deleteInDetailsBtn" style="flex: 1; padding: 10px; background: rgba(248, 81, 73, 0.1); color: var(--danger); border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-size: 0.85rem;">🗑 Вид.</button>
             </div>
         </div>
+
     </div>
 
 <main id="main-content">
@@ -293,6 +299,13 @@
             </div>
         </div>
     </section>
+    <section id="wishlist-section" class="app-section" style="display:none;">
+    <div style="padding: 0 15px;">
+        <h2>❤️ Список бажань</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Книги, які ви хочете купити</p>
+    </div>
+    <div class="book-list-container" id="wishlistList"></div>
+</section>
 </main>
 
 <nav class="bottom-nav">
@@ -300,8 +313,12 @@
         <span>🏠</span>
         <p>Home</p>
     </button>
-    <button class="nav-item" onclick="switchSection('scanner')">
+    <!-- <button class="nav-item" onclick="switchSection('scanner')">
         <div class="scan-circle">📸</div>
+    </button> -->
+    <button class="nav-item" onclick="switchSection('wishlist')">
+        <span>❤️</span>
+        <p>Wishlist</p>
     </button>
     <button class="nav-item" onclick="switchSection('stats')">
         <span>📊</span>
