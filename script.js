@@ -410,7 +410,7 @@ function updateStats() {
     document.getElementById('statAvgRating').textContent = avgRating;
 
     // Helper for Top Authors/Publishers
-    const getTopItems = (items, limit = 3) => {
+    const getTopItems = (items, limit = 15) => {
         const counts = items.reduce((acc, item) => {
             if (item) acc[item] = (acc[item] || 0) + 1;
             return acc;
@@ -425,7 +425,7 @@ function updateStats() {
     const topAuthors = getTopItems(authors);
     const topAuthorsList = document.getElementById('statTopAuthors');
     topAuthorsList.innerHTML = topAuthors.length > 0 
-        ? topAuthors.map(a => `<li>${a[0]} <span style="color: var(--text-muted)">(${a[1]})</span></li>`).join('')
+        ?topAuthors.map(a => `<li>${a[0]} <span>(${a[1]})</span></li>`).join('')
         : '<li>Немає даних</li>';
     document.getElementById('topAuthorsCard').style.display = authors.some(a => a) ? 'block' : 'none';
 
@@ -434,7 +434,7 @@ function updateStats() {
     const topPublishers = getTopItems(publishers);
     const topPublishersList = document.getElementById('statTopPublishers');
     topPublishersList.innerHTML = topPublishers.length > 0
-        ? topPublishers.map(p => `<li>${p[0]} <span style="color: var(--text-muted)">(${p[1]})</span></li>`).join('')
+        ? topPublishers.map(p => `<li>${p[0]} <span>(${p[1]})</span></li>`).join('')
         : '<li>Немає даних</li>';
     document.getElementById('topPublishersCard').style.display = publishers.some(p => p) ? 'block' : 'none';
 
@@ -458,6 +458,81 @@ function updateStats() {
         `;
     }).join('');
     document.getElementById('ratingDistCard').style.display = ratedBooks.length > 0 ? 'block' : 'none';
+
+
+    // Wishlist
+const wishlistBooks = books.filter(b => b.inWishlist);
+const wishlistEl = document.getElementById('statWishlist');
+wishlistEl.innerHTML = wishlistBooks.length > 0
+    ? wishlistBooks.map(b => `
+    <li>
+        <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${b.title}</span>
+        <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
+    </li>
+`).join('')
+    : '<li>Список порожній</li>';
+document.getElementById('wishlistCard').style.display = 'block';
+
+// Прогрес читання (прогрес-бар)
+const totalBooks = books.filter(b => !b.inWishlist).length;
+const readBooks = books.filter(b => b.isRead).length;
+const readPercent = totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
+document.getElementById('readProgress').innerHTML = `
+    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-muted);">
+        <span>Прочитано ${readBooks} з ${totalBooks}</span>
+        <span>${readPercent}%</span>
+    </div>
+    <div style="background: var(--border-color); border-radius: 8px; overflow: hidden; height: 14px;">
+        <div style="width: ${readPercent}%; height: 100%; background: var(--accent-color); border-radius: 8px; transition: width 0.5s;"></div>
+    </div>
+`;
+document.getElementById('readProgressCard').style.display = 'block';
+
+// Деталі по типах
+const typeData = [
+    { label: '📖 Паперові', count: books.filter(b => (b.type || 'paper') === 'paper' && !b.inWishlist).length },
+    { label: '📱 Електронні', count: books.filter(b => b.type === 'ebook' && !b.inWishlist).length },
+    { label: '🎧 Аудіо', count: books.filter(b => b.type === 'audio' && !b.inWishlist).length },
+];
+document.getElementById('statTypeBreakdown').innerHTML = typeData
+    .map(t => `<li>${t.label} <strong>${t.count}</strong> <span>(${totalBooks > 0 ? Math.round(t.count/totalBooks*100) : 0}%)</span></li>`)
+    .join('');
+document.getElementById('typeBreakdownCard').style.display = 'block';
+
+// Топ оцінені книги
+const topRated = [...books]
+    .filter(b => b.rating > 0 && !b.inWishlist)
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 5);
+const topRatedEl = document.getElementById('statTopRated');
+topRatedEl.innerHTML = topRated.length > 0
+    ? topRated.map(b => `
+    <li>
+        <span style="color:#ffca08; font-size:0.75rem; white-space:nowrap; flex-shrink:0;">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</span>
+        <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${b.title}</span>
+        <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
+    </li>
+`).join('')
+    : '<li>Немає оцінених книг</li>';
+document.getElementById('topRatedCard').style.display = topRated.length > 0 ? 'block' : 'none';
+
+// Непрочитані книги — по одній від кожного автора чиї книги вже читав
+const readAuthors = [...new Set(books.filter(b => b.isRead).map(b => b.author))];
+const unread = readAuthors
+    .map(author => books.find(b => b.author === author && !b.isRead && !b.inWishlist))
+    .filter(Boolean)
+    .slice(0, 5);
+
+const unreadEl = document.getElementById('statUnread');
+unreadEl.innerHTML = unread.length > 0
+    ? unread.map(b => `
+    <li>
+        <span style="color:var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;">${b.title}</span>
+        <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
+    </li>
+`).join('')
+    : '<li>Немає рекомендацій — додайте більше книг одного автора</li>';
+document.getElementById('unreadCard').style.display = 'block';
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
