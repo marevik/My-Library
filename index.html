@@ -273,15 +273,14 @@
     <section id="stats-section" class="app-section" style="display:none;">
         <div class="stats-container" style="padding: 0 15px;">
             <h2>Статистика бібліотеки</h2>
-            
             <div class="stats-grid">
-                <div class="stat-card">📚 Усього: <br><span id="statTotal" style="font-size: 1.5em; font-weight: bold;">0</span></div>
-                <div class="stat-card">✅ Прочитано: <br><span id="statRead" style="font-size: 1.5em; font-weight: bold;">0</span></div>
-                <div class="stat-card">📖 Паперові: <span id="statPaper">0</span></div>
-                <div class="stat-card">📱 Е-книги: <span id="statEbook">0</span></div>
-                <div class="stat-card">🎧 Аудіо: <span id="statAudio">0</span></div>
-                <div class="stat-card">⭐ Сер. рейтинг: <br><span id="statAvgRating" style="font-size: 1.5em; font-weight: bold;">0</span></div>
-            </div>
+    <div class="stat-card">📚 Усього<span id="statTotal">0</span></div>
+    <div class="stat-card">✅ Прочитано<span id="statRead">0</span></div>
+    <div class="stat-card">📖 Паперові<span id="statPaper">0</span></div>
+    <div class="stat-card">📱 Е-книги<span id="statEbook">0</span></div>
+    <div class="stat-card">🎧 Аудіо<span id="statAudio">0</span></div>
+    <div class="stat-card">⭐ Сер. рейтинг<span id="statAvgRating">0</span></div>
+</div>
 
             <div class="stat-card-full list-stat" id="topAuthorsCard">
                 <h4>🏆 Топ Автори</h4>
@@ -297,6 +296,30 @@
                 <h4>📊 Розподіл Рейтингів</h4>
                 <div id="ratingDist"></div>
             </div>
+            <div class="stat-card-full list-stat" id="wishlistCard">
+    <h4>❤️ Список бажань</h4>
+    <ul id="statWishlist"></ul>
+</div>
+
+<div class="stat-card-full" id="readProgressCard">
+    <h4>📈 Прогрес читання</h4>
+    <div id="readProgress"></div>
+</div>
+
+<div class="stat-card-full list-stat" id="typeBreakdownCard">
+    <h4>📚 Деталі по типах</h4>
+    <ul id="statTypeBreakdown"></ul>
+</div>
+
+<div class="stat-card-full list-stat" id="topRatedCard">
+    <h4>🌟 Найвище оцінені</h4>
+    <ul id="statTopRated"></ul>
+</div>
+
+<div class="stat-card-full list-stat" id="unreadCard">
+    <h4>📖 Ще не прочитано</h4>
+    <ul id="statUnread"></ul>
+</div>
         </div>
     </section>
     <section id="wishlist-section" class="app-section" style="display:none;">
