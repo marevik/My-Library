@@ -51,6 +51,7 @@ function loadBooks() {
     const data = localStorage.getItem(storageKey);
     books = data ? JSON.parse(data) : [];
     displayBooks();
+    updateCurrentlyReadingBanner();
 }
 
 function saveBooks() {
@@ -143,6 +144,7 @@ const onAddSubmit = (e) => {
         title: document.getElementById('title').value, 
         author: document.getElementById('author').value, 
         imageURL: document.getElementById('imageURL').value,
+        pages: parseInt(document.getElementById('pages').value) || 0,
         publisher: document.getElementById('publisher').value,
         type: 'paper', 
         isRead: false, 
@@ -236,6 +238,7 @@ function openEditModal(id) {
     document.getElementById('title').value = book.title;
     document.getElementById('author').value = book.author;
     document.getElementById('imageURL').value = book.imageURL || '';
+    document.getElementById('pages').value = book.pages || '';
     document.getElementById('publisher').value = book.publisher || '';
     
     updateCoverPreview(book.imageURL || ''); // Show existing cover
@@ -247,6 +250,7 @@ function openEditModal(id) {
             books[index].title = document.getElementById('title').value;
             books[index].author = document.getElementById('author').value;
             books[index].imageURL = document.getElementById('imageURL').value;
+            books[index].pages = parseInt(document.getElementById('pages').value) || 0;
             books[index].publisher = document.getElementById('publisher').value;
             saveBooks();
             displayBooks();
@@ -258,6 +262,7 @@ function openEditModal(id) {
 }
 
 window.openDetailsModal = (id) => {
+    
     const book = books.find(b => b.id === id);
     if (!book) return;
 
@@ -271,7 +276,13 @@ window.openDetailsModal = (id) => {
     document.getElementById('detailsBookType').value = book.type || 'paper';
     updateWishlistBtn(book.inWishlist || false);
     updateStarsUI(tempRating);
+    document.getElementById('detailsPages').value = book.pages || '';
+    document.getElementById('detailsCurrentlyReading').checked = book.isCurrentlyReading || false;
     document.getElementById('detailsModal').style.display = "flex";
+    const readDateContainer = document.getElementById('readDateContainer');
+const readDate = book.readDate || '';
+document.getElementById('detailsReadDate').value = readDate;
+readDateContainer.style.display = (book.isRead && readDate) ? 'block' : (book.isRead ? 'block' : 'none');
 };
 
 function closeDetailsModal() {
@@ -395,6 +406,7 @@ function switchSection(sectionId) {
 }
 
 function updateStats() {
+    updateYearGoal();
     // Basic stats
     document.getElementById('statTotal').textContent = books.length;
     document.getElementById('statRead').textContent = books.filter(b => b.isRead).length;
@@ -533,16 +545,118 @@ unreadEl.innerHTML = unread.length > 0
 `).join('')
     : '<li>Немає рекомендацій — додайте більше книг одного автора</li>';
 document.getElementById('unreadCard').style.display = 'block';
+
+
+// Прочитано по місяцях
+const readByMonth = {};
+books.filter(b => b.isRead && b.readDate).forEach(b => {
+    const [year, month] = b.readDate.split('-');
+    const label = new Date(year, month - 1).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+    readByMonth[b.readDate] = readByMonth[b.readDate] || { label, count: 0 };
+    readByMonth[b.readDate].count++;
+});
+
+const sortedMonths = Object.keys(readByMonth).sort().reverse();
+const maxMonthCount = Math.max(...sortedMonths.map(k => readByMonth[k].count), 1);
+
+const readByMonthEl = document.getElementById('statReadByMonth');
+readByMonthEl.innerHTML = sortedMonths.length > 0
+    ? sortedMonths.map(key => {
+        const { label, count } = readByMonth[key];
+        const width = Math.round((count / maxMonthCount) * 100);
+        return `
+            <li style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                <div style="display:flex; justify-content:space-between; width:100%;">
+                    <span style="color:var(--text-main); white-space:nowrap;">${label}</span>
+                    <span style="color:var(--text-muted);">${count} кн.</span>
+                </div>
+                <div style="width:100%; background:var(--border-color); border-radius:4px; overflow:hidden; height:6px;">
+                    <div style="width:${width}%; height:100%; background:var(--accent-color); border-radius:4px;"></div>
+                </div>
+            </li>
+        `;
+    }).join('')
+    : '<li>Немає даних — вкажіть дату прочитання у деталях книги</li>';
+
+document.getElementById('readByMonthCard').style.display = sortedMonths.length > 0 ? 'block' : 'none';
+
+// Статистика сторінок
+const booksWithPages = books.filter(b => b.isRead && b.pages > 0);
+const pagesEl = document.getElementById('statPages');
+
+if (booksWithPages.length > 0) {
+    const totalPages = booksWithPages.reduce((sum, b) => sum + b.pages, 0);
+    const avgPages = Math.round(totalPages / booksWithPages.length);
+    const maxBook = booksWithPages.reduce((a, b) => a.pages > b.pages ? a : b);
+    const minBook = booksWithPages.reduce((a, b) => a.pages < b.pages ? a : b);
+
+    // Середня кількість сторінок за місяць
+    const pagesByMonth = {};
+    booksWithPages.filter(b => b.readDate).forEach(b => {
+        pagesByMonth[b.readDate] = (pagesByMonth[b.readDate] || 0) + b.pages;
+    });
+    const monthValues = Object.values(pagesByMonth);
+    const avgPagesPerMonth = monthValues.length > 0
+        ? Math.round(monthValues.reduce((a, b) => a + b, 0) / monthValues.length)
+        : null;
+
+    pagesEl.innerHTML = `
+        <li>
+            <span style="color:var(--text-main); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                📚 Всього сторінок прочитано
+            </span>
+            <span>${totalPages.toLocaleString('uk-UA')}</span>
+        </li>
+        <li>
+            <span style="color:var(--text-main); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                📊 Середня кількість сторінок
+            </span>
+            <span>${avgPages}</span>
+        </li>
+        ${avgPagesPerMonth ? `
+        <li>
+            <span style="color:var(--text-main); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                📅 Середньо сторінок за місяць
+            </span>
+            <span>${avgPagesPerMonth.toLocaleString('uk-UA')}</span>
+        </li>` : ''}
+        <li>
+            <span style="color:var(--text-main); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                🏆 Найбільша — ${maxBook.title}
+            </span>
+            <span>${maxBook.pages} стор.</span>
+        </li>
+        <li>
+            <span style="color:var(--text-main); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                🏆 Найменша — ${minBook.title}
+            </span>
+            <span>${minBook.pages} стор.</span>
+        </li>
+    `;
+    document.getElementById('pagesStatsCard').style.display = 'block';
+} else {
+    pagesEl.innerHTML = '<li>Немає даних — вкажіть кількість сторінок у деталях книги</li>';
+    document.getElementById('pagesStatsCard').style.display = 'block';
+}
+
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
-    const index = books.findIndex(b => b.id === currentDetailsId);
+    const index = books.findIndex(b => b.id === currentDetailsId); 
     if (index !== -1) {
+        const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
+        if (isCurrently) {
+            books.forEach(b => b.isCurrentlyReading = false);
+        }
+        books[index].isCurrentlyReading = isCurrently;
         books[index].isRead = document.getElementById('detailsReadStatus').checked;
         books[index].rating = tempRating;
         books[index].type = document.getElementById('detailsBookType').value;
         books[index].publisher = document.getElementById('detailsPublisher').value;
+        books[index].pages = parseInt(document.getElementById('detailsPages').value) || 0;
+        books[index].readDate = document.getElementById('detailsReadDate').value;
         saveBooks();
+        updateCurrentlyReadingBanner();
         displayBooks();
         closeDetailsModal();
     }
@@ -599,6 +713,7 @@ const suggestionsContainer = document.getElementById('autocomplete-suggestions')
 imageURLInput.addEventListener('input', () => {
     updateCoverPreview(imageURLInput.value);
 });
+
 
 function debounce(func, delay) {
     clearTimeout(autocompleteTimeout);
@@ -700,4 +815,68 @@ function renderWishlist() {
     });
 }
 
+function saveYearGoal() {
+    const goal = parseInt(document.getElementById('yearGoalInput').value);
+    if (!goal || goal < 1) return;
+    localStorage.setItem('yearGoal', goal);
+    updateYearGoal();
+}
+
+function updateYearGoal() {
+    const goal = parseInt(localStorage.getItem('yearGoal')) || 0;
+    const input = document.getElementById('yearGoalInput');
+    if (goal > 0) input.value = goal;
+
+    const currentYear = new Date().getFullYear();
+    const readThisYear = books.filter(b => {
+        if (!b.isRead || !b.dateRead) return false;
+        return new Date(b.dateRead).getFullYear() === currentYear;
+    }).length;
+
+    // Якщо немає dateRead — рахуємо по id (дата додавання)
+    const addedThisYear = books.filter(b => {
+        return b.isRead && new Date(b.id).getFullYear() === currentYear;
+    }).length;
+
+    const count = addedThisYear;
+    const percent = goal > 0 ? Math.min(Math.round((count / goal) * 100), 100) : 0;
+
+    const daysInYear = 365;
+    const dayOfYear = Math.floor((Date.now() - new Date(currentYear, 0, 0)) / 86400000);
+    const expectedByNow = goal > 0 ? Math.round((dayOfYear / daysInYear) * goal) : 0;
+    const ahead = count - expectedByNow;
+
+    document.getElementById('yearGoalProgress').innerHTML = goal > 0 ? `
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
+            <span>Прочитано цього року: <strong style="color:var(--text-main)">${count}</strong> з <strong style="color:var(--text-main)">${goal}</strong></span>
+            <span>${percent}%</span>
+        </div>
+        <div style="background: var(--border-color); border-radius: 8px; overflow: hidden; height: 14px; margin-bottom: 10px;">
+            <div style="width:${percent}%; height:100%; background:var(--accent-color); border-radius:8px; transition: width 0.5s;"></div>
+        </div>
+        <div style="font-size:0.82rem; color:${ahead >= 0 ? '#10b981' : '#f85149'};">
+            ${ahead >= 0 
+                ? `✅ Ви попереду графіку на ${ahead} кн.` 
+                : `⚠️ Ви відстаєте на ${Math.abs(ahead)} кн.`}
+        </div>
+    ` : '<p style="color:var(--text-muted); font-size:0.85rem; margin:0;">Встановіть ціль щоб відстежувати прогрес</p>';
+}
+
+function toggleReadDate(isChecked) {
+    document.getElementById('readDateContainer').style.display = isChecked ? 'block' : 'none';
+}
+
+function updateCurrentlyReadingBanner() {
+    const current = books.find(b => b.isCurrentlyReading);
+    const banner = document.getElementById('currentlyReadingBanner');
+    if (current) {
+        document.getElementById('currentlyReadingTitle').textContent = current.title;
+        document.getElementById('currentlyReadingAuthor').textContent = current.author;
+        banner.style.display = 'block';
+        banner.onclick = () => openDetailsModal(current.id);
+        banner.style.cursor = 'pointer';
+    } else {
+        banner.style.display = 'none';
+    }
+}
 document.addEventListener('DOMContentLoaded', loadBooks);
