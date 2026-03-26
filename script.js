@@ -44,6 +44,8 @@ window.onclick = (event) => {
         if (d) d.classList.remove('show');
     }
     if (event.target === modal) closeModal();
+     const detailsModal = document.getElementById('detailsModal');
+    if (event.target === detailsModal) closeDetailsModal(); 
 };
 
 // --- Data & Rendering ---
@@ -663,11 +665,37 @@ document.getElementById('saveDetailsBtn').onclick = () => {
 };
 
 document.getElementById('deleteInDetailsBtn').onclick = function() {
-    if (currentDetailsId && confirm("Видалити цю книгу?")) {
+    if (!currentDetailsId || !confirm("Видалити цю книгу?")) return;
+    
+    closeDetailsModal();
+    
+    // Знаходимо картку по id і анімуємо
+    const allCards = document.querySelectorAll('.book-card');
+    const bookIndex = books.findIndex(x => x.id === currentDetailsId);
+    
+    // Шукаємо картку яка відповідає книзі
+    let targetCard = null;
+    allCards.forEach((card, i) => {
+        const visibleBooks = [...books]
+            .filter(b => !b.inWishlist)
+            .sort((a, b) => b.id - a.id);
+        if (visibleBooks[i] && visibleBooks[i].id === currentDetailsId) {
+            targetCard = card;
+        }
+    });
+
+    const doDelete = () => {
         books = books.filter(x => x.id !== currentDetailsId);
         saveBooks();
         displayBooks();
-        closeDetailsModal();
+        renderWishlist();
+    };
+
+    if (targetCard) {
+        targetCard.classList.add('removing');
+        setTimeout(doDelete, 200);
+    } else {
+        doDelete();
     }
 };
 
@@ -879,4 +907,147 @@ function updateCurrentlyReadingBanner() {
         banner.style.display = 'none';
     }
 }
+
+
+function shareBookList() {
+    const readBooks = books.filter(b => b.isRead && !b.inWishlist);
+    const unreadBooks = books.filter(b => !b.isRead && !b.inWishlist);
+    const wishlistBooks = books.filter(b => b.inWishlist);
+
+    const renderSection = (title, list) => {
+        if (list.length === 0) return '';
+        return `
+            <h2>${title} (${list.length})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Назва</th>
+                        <th>Автор</th>
+                        <th>Видавництво</th>
+                        <th>Сторінок</th>
+                        <th>Рейтинг</th>
+                        ${title.includes('Прочитані') ? '<th>Прочитано</th>' : ''}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${list.map((b, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td><strong>${b.title}</strong></td>
+                            <td>${b.author}</td>
+                            <td>${b.publisher || '—'}</td>
+                            <td>${b.pages || '—'}</td>
+                            <td>${b.rating ? '★'.repeat(b.rating) : '—'}</td>
+                            ${title.includes('Прочитані') ? `<td>${b.readDate ? new Date(b.readDate + '-01').toLocaleDateString('uk-UA', {month: 'long', year: 'numeric'}) : '—'}</td>` : ''}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    };
+
+    const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моя бібліотека</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; color: #1a1a1a; }
+        h1 { font-size: 1.8rem; margin-bottom: 4px; }
+        .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
+        h2 { font-size: 1.2rem; margin: 30px 0 10px; border-bottom: 2px solid #8b5cf6; padding-bottom: 6px; color: #8b5cf6; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        th { background: #8b5cf6; color: white; padding: 10px 12px; text-align: left; font-size: 0.85rem; }
+        td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #faf5ff; }
+        .footer { margin-top: 30px; font-size: 0.8rem; color: #999; text-align: center; }
+        @media print { body { background: white; } }
+    </style>
+</head>
+<body>
+    <h1>📚 Моя домашня бібліотека</h1>
+    <p class="subtitle">Згенеровано: ${new Date().toLocaleDateString('uk-UA', {day: 'numeric', month: 'long', year: 'numeric'})} · Всього книг: ${books.filter(b => !b.inWishlist).length}</p>
+    ${renderSection('✅ Прочитані книги', readBooks)}
+    ${renderSection('📖 Непрочитані книги', unreadBooks)}
+    ${renderSection('❤️ Список бажань', wishlistBooks)}
+    <p class="footer">Моя Домашня Бібліотека</p>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `бібліотека_${new Date().toLocaleDateString('uk-UA').replace(/\./g, '-')}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+function shareWishlist() {
+    const wishlistBooks = books.filter(b => b.inWishlist);
+    
+    if (wishlistBooks.length === 0) {
+        alert('Список бажань порожній!');
+        return;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список бажань</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background: #f9f9f9; color: #1a1a1a; }
+        h1 { font-size: 1.6rem; margin-bottom: 4px; }
+        .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        th { background: #f85149; color: white; padding: 10px 12px; text-align: left; font-size: 0.85rem; }
+        td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fff5f5; }
+        .footer { margin-top: 20px; font-size: 0.8rem; color: #999; text-align: center; }
+        @media print { body { background: white; } }
+    </style>
+</head>
+<body>
+    <h1>❤️ Список бажань</h1>
+    <p class="subtitle">Згенеровано: ${new Date().toLocaleDateString('uk-UA', {day: 'numeric', month: 'long', year: 'numeric'})} · Книг: ${wishlistBooks.length}</p>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Назва</th>
+                <th>Автор</th>
+                <th>Видавництво</th>
+                <th>Сторінок</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${wishlistBooks.map((b, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${b.title}</strong></td>
+                    <td>${b.author}</td>
+                    <td>${b.publisher || '—'}</td>
+                    <td>${b.pages || '—'}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+    <p class="footer">Моя Домашня Бібліотека</p>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `wishlist_${new Date().toLocaleDateString('uk-UA').replace(/\./g, '-')}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+
 document.addEventListener('DOMContentLoaded', loadBooks);
