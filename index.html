@@ -83,16 +83,18 @@
 
     <header>
         <div class="title-wrapper" onclick="toggleDropdown(event)">
-            <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
-            <div id="backupDropdown" class="dropdown-content">
-                <button onclick="exportBooks()">📥 Зберегти копію (Експорт)</button>
-                <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
-            </div>
-        </div>
+    <h1 id="headerTitle">Моя Домашня Бібліотека <span class="arrow">▼</span></h1>
+    <div id="backupDropdown" class="dropdown-content">
+        <button onclick="exportBooks()">📥 Зберегти копію (Експорт)</button>
+        <button onclick="document.getElementById('importFile').click()">📤 Відновити з копії (Імпорт)</button>
+        <button onclick="shareBookList()">📤 Поділитись списком</button>
+        <button onclick="shareWishlist()">❤️ Поділитись wishlist</button>
+    </div>
+</div>
          <div style="display: flex; gap: 8px;">
         <button onclick="switchSection('scanner')" style="background: var(--card-bg); color: white; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer;">📸</button>
         <button id="openModalBtn">📚 Додати</button>
-    </div>
+    </div> 
     </header>
 
     <input type="file" id="importFile" style="display:none" onchange="importBooks(event)">
