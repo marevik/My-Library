@@ -16,6 +16,19 @@ const sortSelect = document.getElementById('sortSelect');
 const publisherFilter = document.getElementById('publisherFilter');
 const coverPreview = document.getElementById('cover-preview');
 
+
+const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM"; 
+ const firebaseConfig = {
+    apiKey: "AIzaSyD5NeqCcQ0A7OpIxfv07zBpp9GFLKWtrxE",
+    authDomain: "mylibrary-pwa.firebaseapp.com",
+    databaseURL: "https://mylibrary-pwa-default-rtdb.firebaseio.com",
+    projectId: "mylibrary-pwa",
+    storageBucket: "mylibrary-pwa.firebasestorage.app",
+    messagingSenderId: "80873347860",
+    appId: "1:80873347860:web:4938c700943b5cb6c60001"
+  };
+
+
 // --- Window Management ---
 function toggleDropdown(event) {
     event.stopPropagation();
@@ -100,52 +113,74 @@ function saveBooks() {
 }
 
 function displayBooks() {
+    let booksToDisplay = [...books].filter(b => !b.inWishlist);
+
+    // Фільтр по типу
+    if (currentFilterType === 'reading') {
+        booksToDisplay = booksToDisplay.filter(b => b.isCurrentlyReading);
+    } else if (currentFilterType === 'read') {
+        booksToDisplay = booksToDisplay.filter(b => b.isRead);
+    } else if (currentFilterType !== 'all') {
+        booksToDisplay = booksToDisplay.filter(b => (b.type || 'paper') === currentFilterType);
+    }
+
+    // Пошук
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        booksToDisplay = booksToDisplay.filter(b =>
+            b.title.toLowerCase().includes(query) ||
+            b.author.toLowerCase().includes(query)
+        );
+    }
+
+    // Фільтр по видавництву
+    if (currentPublisher !== 'all') {
+        booksToDisplay = booksToDisplay.filter(b => (b.publisher || '') === currentPublisher);
+    }
+
+    // Сортування
+    switch (currentSortOrder) {
+        case 'title-asc':
+            booksToDisplay.sort((a, b) => a.title.localeCompare(b.title)); break;
+        case 'title-desc':
+            booksToDisplay.sort((a, b) => b.title.localeCompare(a.title)); break;
+        case 'publisher-asc':
+            booksToDisplay.sort((a, b) => (a.publisher || '').localeCompare(b.publisher || '')); break;
+        case 'publisher-desc':
+            booksToDisplay.sort((a, b) => (b.publisher || '').localeCompare(a.publisher || '')); break;
+        case 'date-old':
+            booksToDisplay.sort((a, b) => a.id - b.id); break;
+        case 'date-new':
+        default:
+            booksToDisplay.sort((a, b) => b.id - a.id); break;
+    }
+
     const mainContainer = document.getElementById('bookList');
-    const wishlistContainer = document.getElementById('wishlistList');
-    
-    if (mainContainer) mainContainer.innerHTML = '';
-    if (wishlistContainer) wishlistContainer.innerHTML = '';
-
-    const sortedBooks = [...books].sort((a, b) => {
-        if (currentSortOrder === 'title') return a.title.localeCompare(b.title);
-        if (currentSortOrder === 'author') return a.author.localeCompare(b.author);
-        return (b.id || 0) - (a.id || 0);
-    });
-
-    let hasMainBooks = false;
-    let hasWishlistBooks = false;
-
-    sortedBooks.forEach(book => {
-        const matchesSearch = book.title.toLowerCase().includes(currentSearchQuery) || 
-                              book.author.toLowerCase().includes(currentSearchQuery);
-        const matchesPublisher = currentPublisher === 'all' || book.publisher === currentPublisher;
-
-        if (!matchesSearch || !matchesPublisher) return;
-
-        // Розподіляємо потоки рендерингу залежно від активного табу
-        if (currentFilterType === 'wishlist') {
-            if (book.inWishlist && wishlistContainer) {
-                hasWishlistBooks = true;
-                createBookCard(book, wishlistContainer);
-            }
+    if (mainContainer) {
+        mainContainer.innerHTML = '';
+        if (booksToDisplay.length === 0) {
+            mainContainer.innerHTML = '<p class="empty-message">Нічого не знайдено 📚</p>';
         } else {
-            if (!book.inWishlist && mainContainer) {
-                if (currentFilterType === 'reading' && !book.isCurrentlyReading) return;
-                if (currentFilterType === 'read' && !book.isRead) return;
-                
-                hasMainBooks = true;
-                createBookCard(book, mainContainer);
-            }
+            booksToDisplay.forEach(book => createBookCard(book, mainContainer));
         }
-    });
+    }
 
-    // Виводимо повідомлення про порожній список ТІЛЬКИ для активного екрана
-    if (currentFilterType !== 'wishlist' && !hasMainBooks && mainContainer) {
-        mainContainer.innerHTML = '<p class="empty-message">Нічого не знайдено 📚</p>';
+
+    // Wishlist окремо
+    renderWishlist();
+}
+
+
+    function renderWishlist() {
+    const container = document.getElementById('wishlistList');
+    if (!container) return;
+    const wishlistBooks = books.filter(b => b.inWishlist);
+    container.innerHTML = '';
+    if (wishlistBooks.length === 0) {
+        container.innerHTML = '<p class="empty-message">Список бажань порожній ❤️</p>';
+        return;
     }
-    if (currentFilterType === 'wishlist' && !hasWishlistBooks && wishlistContainer) {
-        wishlistContainer.innerHTML = '<p class="empty-message">Список бажань порожній ❤️</p>';
-    }
+    wishlistBooks.forEach(book => createBookCard(book, container));
 }
 
 // Допоміжна функція для створення картки (щоб уникнути дублювання коду)
@@ -481,9 +516,9 @@ function updateStats() {
     if (!books || books.length === 0) {
         if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = '0';
         if(document.getElementById('statRead')) document.getElementById('statRead').textContent = '0';
-        if(document.getElementById('statUnread')) document.getElementById('statUnread').textContent = '0';
+        
         if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = '0%';
-        if(document.getElementById('statPages')) document.getElementById('statPages').textContent = '0';
+       
         return;
     }
 
@@ -498,7 +533,46 @@ function updateStats() {
     const readCount = readBooks.length;
     const unreadCount = unreadBooks.length;
     const percentage = total > 0 ? Math.round((readCount / total) * 100) : 0;
-    
+    // Статистика сторінок
+const booksWithPages = readBooks.filter(b => b.pages > 0);
+const pagesUl = document.getElementById('statPages');
+if (pagesUl && pagesUl.tagName === 'UL') {
+    if (booksWithPages.length > 0) {
+        const totalPagesCount = booksWithPages.reduce((sum, b) => sum + b.pages, 0);
+        const avgPages = Math.round(totalPagesCount / booksWithPages.length);
+        const maxBook = booksWithPages.reduce((a, b) => a.pages > b.pages ? a : b);
+        const minBook = booksWithPages.reduce((a, b) => a.pages < b.pages ? a : b);
+        pagesUl.innerHTML = `
+            <li><span style="flex:1">📚 Всього сторінок прочитано</span><span>${totalPagesCount.toLocaleString('uk-UA')}</span></li>
+            <li><span style="flex:1">📊 Середня кількість сторінок</span><span>${avgPages}</span></li>
+            <li><span style="flex:1">🏆 Найбільша — ${maxBook.title}</span><span>${maxBook.pages} стор.</span></li>
+            <li><span style="flex:1">🪶 Найменша — ${minBook.title}</span><span>${minBook.pages} стор.</span></li>
+        `;
+    } else {
+        pagesUl.innerHTML = '<li>Немає даних — вкажіть кількість сторінок у деталях книги</li>';
+    }
+}
+
+// Топ авторів
+const getTopItems = (items, limit = 15) => {
+    const counts = items.reduce((acc, item) => {
+        if (item) acc[item] = (acc[item] || 0) + 1;
+        return acc;
+    }, {});
+    return Object.entries(counts).sort(([,a],[,b]) => b-a).slice(0, limit);
+};
+
+const topAuthorsUl = document.getElementById('statTopAuthors');
+if (topAuthorsUl) {
+    const topAuthors = getTopItems(actualBooks.map(b => b.author));
+    topAuthorsUl.innerHTML = topAuthors.map(a => `<li>${a[0]} <span>(${a[1]})</span></li>`).join('') || '<li>Немає даних</li>';
+}
+
+const topPublishersUl = document.getElementById('statTopPublishers');
+if (topPublishersUl) {
+    const topPublishers = getTopItems(actualBooks.map(b => b.publisher).filter(Boolean));
+    topPublishersUl.innerHTML = topPublishers.map(p => `<li>${p[0]} <span>(${p[1]})</span></li>`).join('') || '<li>Немає даних</li>';
+}
     // Рахуємо сторінки
     const totalPages = readBooks.reduce((sum, book) => sum + (parseInt(book.pages) || 0), 0);
 
@@ -507,7 +581,6 @@ function updateStats() {
     if(document.getElementById('statRead')) document.getElementById('statRead').textContent = readCount;
     if(document.getElementById('statUnread')) document.getElementById('statUnread').textContent = unreadCount;
     if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = percentage + '%';
-    if(document.getElementById('statPages')) document.getElementById('statPages').textContent = totalPages.toLocaleString();
 
     // 2. ДЕТАЛІ ПО ТИПАХ (Паперові, Електронні, Аудіо)
     const typeCounts = actualBooks.reduce((acc, book) => {
@@ -568,7 +641,7 @@ function updateStats() {
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
-    const index = books.find(b => b.id === currentDetailsId); 
+    // const index = books.find(b => b.id === currentDetailsId); 
     if (currentDetailsId) {
         const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
         const isRead = document.getElementById('detailsReadStatus').checked;
@@ -691,16 +764,6 @@ if (titleInput) {
     });
 }
 
-const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM"; 
- const firebaseConfig = {
-    apiKey: "AIzaSyD5NeqCcQ0A7OpIxfv07zBpp9GFLKWtrxE",
-    authDomain: "mylibrary-pwa.firebaseapp.com",
-    databaseURL: "https://mylibrary-pwa-default-rtdb.firebaseio.com",
-    projectId: "mylibrary-pwa",
-    storageBucket: "mylibrary-pwa.firebasestorage.app",
-    messagingSenderId: "80873347860",
-    appId: "1:80873347860:web:4938c700943b5cb6c60001"
-  };
 
   // Ініціалізація додатку
 firebase.initializeApp(firebaseConfig);
