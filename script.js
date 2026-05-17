@@ -50,43 +50,40 @@ window.onclick = (event) => {
 
 // --- Data & Rendering ---
 function loadBooks() {
+    // 1. Спочатку слухаємо загальну базу книг, яка спільна для всіх
     database.ref('books').on('value', (booksSnapshot) => {
         const allBooks = booksSnapshot.val() ? Object.values(booksSnapshot.val()) : [];
 
+        // 2. Всередині слухаємо особисту папку поточного користувача (Ігор)
         database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
             const myData = userSnapshot.val() || {};
 
+            // 3. Об'єднуємо: беремо загальну книгу і додаємо до неї особисті статуси
             books = allBooks.map(book => {
                 const myStats = myData[book.id] || { 
                     isRead: false, 
                     rating: 0, 
                     isCurrentlyReading: false,
                     readDate: '',
-                    dateRead: '', // додаємо про всяк випадок
                     inWishlist: false 
                 };
 
-                // Беремо дату, яка б назва поля не використовувалася в localStorage чи базі
-                const finalDate = myStats.readDate || myStats.dateRead || book.readDate || book.dateRead || '';
-
                 return {
                     ...book,
-                    isRead: myStats.isRead,
-                    rating: myStats.rating,
-                    isCurrentlyReading: myStats.isCurrentlyReading,
-                    inWishlist: myStats.inWishlist,
-                    // Записуємо в обох форматах, щоб функція updateStats() 100% зчитала її
-                    readDate: finalDate,
-                    dateRead: finalDate 
+                    isRead: myStats.isRead !== undefined ? myStats.isRead : (book.isRead || false),
+                    rating: myStats.rating !== undefined ? myStats.rating : (book.rating || 0),
+                    isCurrentlyReading: myStats.isCurrentlyReading !== undefined ? myStats.isCurrentlyReading : (book.isCurrentlyReading || false),
+                    readDate: myStats.readDate || book.readDate || '',
+                    inWishlist: myStats.inWishlist !== undefined ? myStats.inWishlist : (book.inWishlist || false)
                 };
             });
 
             console.log(`Синхронізовано з Firebase! Спільних книг: ${books.length}. Користувач: ${currentUser}`);
             
-            // Оновлення інтерфейсу
-            if (typeof displayBooks === 'function') displayBooks();
-            if (typeof updateCurrentlyReadingBanner === 'function') updateCurrentlyReadingBanner();
-            if (typeof updateStats === 'function') updateStats(); // примусово перераховуємо статистику
+            // 4. Оновлюємо інтерфейс та статистику
+            displayBooks();
+            updateCurrentlyReadingBanner();
+            updateStats();
         });
     });
 }
@@ -103,52 +100,79 @@ function saveBooks() {
 }
 
 function displayBooks() {
-    let booksToDisplay = [...books];
-    booksToDisplay = booksToDisplay.filter(b => !b.inWishlist);
+    const mainContainer = document.getElementById('bookList');
+    const wishlistContainer = document.getElementById('wishlistList');
     
-    // 1. Filter by type
-    if (currentFilterType !== 'all') {
-        booksToDisplay = booksToDisplay.filter(b => (b.type || 'paper') === currentFilterType);
+    if (mainContainer) mainContainer.innerHTML = '';
+    if (wishlistContainer) wishlistContainer.innerHTML = '';
+
+    const sortedBooks = [...books].sort((a, b) => {
+        if (currentSortOrder === 'title') return a.title.localeCompare(b.title);
+        if (currentSortOrder === 'author') return a.author.localeCompare(b.author);
+        return (b.id || 0) - (a.id || 0);
+    });
+
+    let hasMainBooks = false;
+    let hasWishlistBooks = false;
+
+    sortedBooks.forEach(book => {
+        const matchesSearch = book.title.toLowerCase().includes(currentSearchQuery) || 
+                              book.author.toLowerCase().includes(currentSearchQuery);
+        const matchesPublisher = currentPublisher === 'all' || book.publisher === currentPublisher;
+
+        if (!matchesSearch || !matchesPublisher) return;
+
+        // Розподіляємо потоки рендерингу залежно від активного табу
+        if (currentFilterType === 'wishlist') {
+            if (book.inWishlist && wishlistContainer) {
+                hasWishlistBooks = true;
+                createBookCard(book, wishlistContainer);
+            }
+        } else {
+            if (!book.inWishlist && mainContainer) {
+                if (currentFilterType === 'reading' && !book.isCurrentlyReading) return;
+                if (currentFilterType === 'read' && !book.isRead) return;
+                
+                hasMainBooks = true;
+                createBookCard(book, mainContainer);
+            }
+        }
+    });
+
+    // Виводимо повідомлення про порожній список ТІЛЬКИ для активного екрана
+    if (currentFilterType !== 'wishlist' && !hasMainBooks && mainContainer) {
+        mainContainer.innerHTML = '<p class="empty-message">Нічого не знайдено 📚</p>';
+    }
+    if (currentFilterType === 'wishlist' && !hasWishlistBooks && wishlistContainer) {
+        wishlistContainer.innerHTML = '<p class="empty-message">Список бажань порожній ❤️</p>';
+    }
+}
+
+// Допоміжна функція для створення картки (щоб уникнути дублювання коду)
+function createBookCard(book, container) {
+    const card = document.createElement('div');
+    card.className = 'book-card';
+    if (book.isRead) card.classList.add('read');
+
+    // Виправлення блокування картинок телефонами (Mixed Content)
+    let coverUrl = book.imageURL || 'placeholder.png';
+    if (coverUrl.startsWith('http://')) {
+        coverUrl = coverUrl.replace('http://', 'https://');
     }
 
-    // 2. Filter by search
-    if (currentSearchQuery) {
-        const query = currentSearchQuery.toLowerCase();
-        booksToDisplay = booksToDisplay.filter(b => 
-            b.title.toLowerCase().includes(query) || 
-            b.author.toLowerCase().includes(query)
-        );
-    }
+    const ratingStars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
 
-    // 3. Filter by publisher
-    if (currentPublisher !== 'all') {
-        booksToDisplay = booksToDisplay.filter(b => (b.publisher || '') === currentPublisher);
-    }
+    card.innerHTML = `
+        <img src="${coverUrl}" alt="${book.title}" onerror="this.src='https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=200&auto=format&fit=crop'">
+        <div class="book-info">
+            <h3>${book.title}</h3>
+            <p>${book.author}</p>
+            <div class="stars">${ratingStars}</div>
+        </div>
+    `;
 
-    // 4. Sort
-    switch (currentSortOrder) {
-        case 'title-asc':
-            booksToDisplay.sort((a, b) => a.title.localeCompare(b.title));
-            break;
-        case 'title-desc':
-            booksToDisplay.sort((a, b) => b.title.localeCompare(a.title));
-            break;
-        case 'publisher-asc':
-            booksToDisplay.sort((a, b) => (a.publisher || '').localeCompare(b.publisher || ''));
-            break;
-        case 'publisher-desc':
-            booksToDisplay.sort((a, b) => (b.publisher || '').localeCompare(a.publisher || ''));
-            break;
-        case 'date-old':
-            booksToDisplay.sort((a, b) => a.id - b.id);
-            break;
-        case 'date-new':
-        default:
-            booksToDisplay.sort((a, b) => b.id - a.id);
-            break;
-    }
-
-    renderBooks(booksToDisplay);
+    card.onclick = () => openDetailsModal(book.id);
+    container.appendChild(card);
 }
 
 function renderBooks(arr) {
@@ -426,177 +450,94 @@ function startScanner() {
 
 // --- Navigation Logic ---
 function switchSection(sectionId) {
+    // Ховаємо абсолютно всі секції
     document.querySelectorAll('.app-section').forEach(s => s.style.display = 'none');
-    
-    const activeSection = document.getElementById(sectionId + '-section');
-    if (activeSection) {
-        activeSection.style.display = 'block';
-    }
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${sectionId}'`)) {
-            btn.classList.add('active');
-        }
-    });
-    
-    if (sectionId === 'scanner') {
-        startScanner();
-    } else {
-        if (typeof Quagga !== 'undefined') {
-            try { Quagga.stop(); } catch(e) {}
-        }
+    // Показуємо вибрану секцію
+    if (sectionId === 'home') {
+        document.getElementById('home-section').style.display = 'block';
+        currentFilterType = 'all'; // Повертаємо показ усіх звичайних книг
+    } else if (sectionId === 'wishlist') {
+        document.getElementById('wishlist-section').style.display = 'block';
+        currentFilterType = 'wishlist'; // Вказуємо, що ми у списку бажань
+    } else if (sectionId === 'stats') {
+        document.getElementById('stats-section').style.display = 'block';
+        updateStats();
     }
     
-    if (sectionId === 'stats') updateStats();
-    if (sectionId === 'wishlist') renderWishlist();
+    // Активуємо кнопку в меню
+    const activeBtn = document.querySelector(`button[onclick="switchSection('${sectionId}')"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
+    // Перерендерюємо книги під нову секцію
+    displayBooks();
 }
 window.switchSection = switchSection;
 
 // --- Stats & System Updates ---
 function updateStats() {
-    updateYearGoal();
+    // Фільтруємо книги (виключаємо список бажань зі статистики паперових/прочитаних книг)
+    const realBooks = books.filter(b => !b.inWishlist);
+    const readBooks = realBooks.filter(b => b.isRead === true);
+    const unreadBooks = realBooks.filter(b => !b.isRead);
     
-    const totalEl = document.getElementById('statTotal');
-    if (!totalEl) return; // Guard clause if stats DOM is missing
+    const total = realBooks.length;
+    const readCount = readBooks.length;
+    const unreadCount = unreadBooks.length;
+    const percentage = total > 0 ? Math.round((readCount / total) * 100) : 0;
+    const totalPages = readBooks.reduce((sum, b) => sum + (parseInt(b.pages) || 0), 0);
 
-    // Загальна кількість спільних книг
-    totalEl.textContent = books.length;
-    
-    // Рахуємо прочитані на основі ОСОБИСТИХ відміток
-    const readBooksCount = books.filter(b => b.isRead).length;
-    document.getElementById('statRead').textContent = readBooksCount;
+    // Оновлюємо цифри на картках
+    if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = total;
+    if (document.getElementById('statRead')) document.getElementById('statRead').textContent = readCount;
+    if (document.getElementById('statUnread')) document.getElementById('statUnread').textContent = unreadCount;
+    if (document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = percentage + '%';
+    if (document.getElementById('statPages')) document.getElementById('statPages').textContent = totalPages.toLocaleString();
 
-    // 1. ВИПРАВЛЕННЯ: Деталі по типах (Паперові, Електронні, Аудіо)
-    // Рахуємо типи з урахуванням того, що якщо типу немає — це паперова книга
-    const paperCount = books.filter(b => b.type === 'paper' || !b.type).length;
-    const ebookCount = books.filter(b => b.type === 'ebook').length;
-    const audioCount = books.filter(b => b.type === 'audio').length;
-
-    // Спробуємо оновити твої окремі елементи, якщо вони є
-    if (document.getElementById('statPaper')) document.getElementById('statPaper').textContent = paperCount;
-    if (document.getElementById('statEbook')) document.getElementById('statEbook').textContent = ebookCount;
-    if (document.getElementById('statAudio')) document.getElementById('statAudio').textContent = audioCount;
-
-    // Додатково заповнюємо список списку списком списків, як у твоєму HTML
+    // 1. Деталі по типах
     const typeBreakdownUl = document.getElementById('statTypeBreakdown');
     if (typeBreakdownUl) {
-        typeBreakdownUl.innerHTML = `
-            <li><span>📖 Паперові</span><strong>${paperCount}</strong></li>
-            <li><span>📱 Електронні</span><strong>${ebookCount}</strong></li>
-            <li><span>🎧 Аудіокниги</span><strong>${audioCount}</strong></li>
-        `;
+        typeBreakdownUl.innerHTML = '';
+        const types = { 
+            'paper': { label: '📖 Паперові', count: 0 }, 
+            'ebook': { label: '📱 Електронні', count: 0 }, 
+            'audio': { label: '🎧 Аудіокниги', count: 0 } 
+        };
+        
+        realBooks.forEach(b => {
+            const t = b.type || 'paper';
+            if (types[t]) types[t].count++;
+        });
+
+        Object.values(types).forEach(t => {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.padding = '8px 0';
+            li.innerHTML = `<span>${t.label}</span><strong>${t.count}</strong>`;
+            typeBreakdownUl.appendChild(li);
+        });
     }
 
-    // Середня оцінка
-    const ratedBooks = books.filter(b => b.rating > 0);
-    const avgRating = ratedBooks.length > 0
-        ? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
-        : 'N/A';
-    document.getElementById('statAvgRating').textContent = avgRating;
-
-    // Допоміжна функція для топ-елементів
-    const getTopItems = (items, limit = 15) => {
-        const counts = items.reduce((acc, item) => {
-            if (item) acc[item] = (acc[item] || 0) + 1;
-            return acc;
-        }, {});
-        return Object.entries(counts)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, limit);
-    };
-
-    // Топ авторів
-    const authors = books.map(b => b.author).filter(Boolean);
-    const topAuthors = getTopItems(authors);
-    const topAuthorsList = document.getElementById('statTopAuthors');
-    topAuthorsList.innerHTML = topAuthors.length > 0 
-        ? topAuthors.map(a => `<li>${a[0]} <span>(${a[1]})</span></li>`).join('')
-        : '<li>Немає даних</li>';
-    document.getElementById('topAuthorsCard').style.display = authors.length > 0 ? 'block' : 'none';
-
-    // Топ видавництв
-    const publishers = books.map(b => b.publisher).filter(Boolean);
-    const topPublishers = getTopItems(publishers);
-    const topPublishersList = document.getElementById('statTopPublishers');
-    topPublishersList.innerHTML = topPublishers.length > 0
-        ? topPublishers.map(p => `<li>${p[0]} <span>(${p[1]})</span></li>`).join('')
-        : '<li>Немає даних</li>';
-    document.getElementById('topPublishersCard').style.display = publishers.length > 0 ? 'block' : 'none';
-
-    // Розподіл оцінок (зірочки)
-    const ratingDist = [1, 2, 3, 4, 5].reduce((acc, rating) => {
-        acc[rating] = books.filter(b => b.rating === rating).length;
-        return acc;
-    }, {});
-    const maxRatingCount = Math.max(...Object.values(ratingDist), 1);
-    const ratingDistContainer = document.getElementById('ratingDist');
-    ratingDistContainer.innerHTML = Object.entries(ratingDist).map(([rating, count]) => {
-        const width = (count / maxRatingCount) * 100;
-        return `
-            <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                <span style="width: 25px;">${'★'.repeat(rating)}</span>
-                <div style="flex: 1; background: var(--border-color); border-radius: 4px; overflow: hidden; margin: 0 10px;">
-                    <div class="bar" style="width: ${width}%; height: 8px; background: var(--accent-color);"></div>
-                </div>
-                <span style="width: 30px; text-align: right; color: var(--text-muted);">${count}</span>
-            </div>
-        `;
-    }).join('');
-    document.getElementById('ratingDistCard').style.display = ratedBooks.length > 0 ? 'block' : 'none';
-
-    // Список бажань
-    const wishlistBooks = books.filter(b => b.inWishlist);
-    const wishlistEl = document.getElementById('statWishlist');
-    if (wishlistEl) {
-        wishlistEl.innerHTML = wishlistBooks.length > 0
-            ? wishlistBooks.map(b => `<li><span>${b.title}</span><span style="color:var(--text-muted)"> — ${b.author}</span></li>`).join('')
-            : '<li>Список порожній</li>';
-    }
-
-    // Прогрес-бар прочитаного
-    const totalBooks = books.filter(b => !b.inWishlist).length;
-    const readBooks = books.filter(b => b.isRead).length;
-    const readPercent = totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
-    document.getElementById('readProgress').innerHTML = `
-        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.9rem; color: var(--text-muted);">
-            <span>Прочитано ${readBooks} з ${totalBooks}</span>
-            <span>${readPercent}%</span>
-        </div>
-        <div style="background: var(--border-color); border-radius: 8px; overflow: hidden; height: 14px;">
-            <div style="width: ${readPercent}%; height: 100%; background: var(--accent-color); transition: width 0.5s;"></div>
-        </div>
-    `;
-
-    // Найвище оцінені
-    const topRated = [...books].filter(b => b.rating > 0 && !b.inWishlist).sort((a, b) => b.rating - a.rating).slice(0, 5);
-    document.getElementById('statTopRated').innerHTML = topRated.length > 0
-        ? topRated.map(b => `<li><span style="color:#ffca08;">${'★'.repeat(b.rating)}</span> <span>${b.title}</span></li>`).join('')
-        : '<li>Немає оцінених книг</li>';
-
-    // 2. ДОДАНО: Виведення блоку «Ще не прочитано»
-    const unreadBooksList = books.filter(b => !b.isRead && !b.inWishlist);
+    // 2. Список "Ще не прочитано"
     const unreadListUl = document.getElementById('statUnread');
     if (unreadListUl) {
-        // Показуємо перші 15 непрочитаних книг, щоб список не розтягувався на кілометр
-        const displayUnread = unreadBooksList.slice(0, 15); 
-        unreadListUl.innerHTML = displayUnread.length > 0
-            ? displayUnread.map(b => `<li><span>${b.title}</span><span style="color:var(--text-muted)"> — ${b.author}</span></li>`).join('')
-            : '<li>Усі книги прочитано! 🎉</li>';
-    }
-
-    // Статистика сторінок
-    const booksWithPages = books.filter(b => b.isRead && b.pages > 0);
-    const pagesEl = document.getElementById('statPages');
-    if (booksWithPages.length > 0) {
-        const totalPages = booksWithPages.reduce((sum, b) => sum + b.pages, 0);
-        const avgPages = Math.round(totalPages / booksWithPages.length);
-        pagesEl.innerHTML = `
-            <li><span>Всього сторінок прочитано:</span> <strong>${totalPages.toLocaleString('uk-UA')}</strong></li>
-            <li><span>Середній об'єм книги:</span> <strong>${avgPages} стор.</strong></li>
-        `;
-    } else {
-        pagesEl.innerHTML = '<li>Вкажіть сторінки в деталях прочитаних книг.</li>';
+        unreadListUl.innerHTML = '';
+        const listToShow = unreadBooks.slice(0, 10); // показуємо перші 10 книг
+        
+        if (listToShow.length === 0) {
+            unreadListUl.innerHTML = '<li style="color:var(--text-muted); padding: 6px 0;">Усі книги прочитано! 🎉</li>';
+        } else {
+            listToShow.forEach(b => {
+                const li = document.createElement('li');
+                li.style.padding = '6px 0';
+                li.style.borderBottom = '1px solid var(--border-color)';
+                li.style.color = 'var(--text-color)';
+                li.textContent = `${b.title} — ${b.author}`;
+                unreadListUl.appendChild(li);
+            });
+        }
     }
 }
 
@@ -952,45 +893,45 @@ if (!currentUser) {
 // // Автоматичний запуск через 2.5 секунди після старту додатка
 // setTimeout(totalResetAndFullMigration, 2500);
 
-function migrateWishlistToFirebase() {
-    // 1. Беремо старі дані з твого localStorage на телефоні
-    const localData = localStorage.getItem('myLibraryBooks');
+// function migrateWishlistToFirebase() {
+//     // 1. Беремо старі дані з твого localStorage на телефоні
+//     const localData = localStorage.getItem('myLibraryBooks');
     
-    if (!localData) {
-        console.warn("У localStorage не знайдено книг для міграції списку бажань.");
-        alert("Помилка: localStorage порожній на цьому пристрої.");
-        return;
-    }
+//     if (!localData) {
+//         console.warn("У localStorage не знайдено книг для міграції списку бажань.");
+//         alert("Помилка: localStorage порожній на цьому пристрої.");
+//         return;
+//     }
 
-    const localBooks = JSON.parse(localData);
-    const wishlistUpdates = {};
-    let count = 0;
+//     const localBooks = JSON.parse(localData);
+//     const wishlistUpdates = {};
+//     let count = 0;
 
-    localBooks.forEach(book => {
-        // Якщо книга була в списку бажань, готуємо оновлення для Firebase
-        if (book.inWishlist === true) {
-            wishlistUpdates[`${book.id}/inWishlist`] = true;
-            count++;
-        }
-    });
+//     localBooks.forEach(book => {
+//         // Якщо книга була в списку бажань, готуємо оновлення для Firebase
+//         if (book.inWishlist === true) {
+//             wishlistUpdates[`${book.id}/inWishlist`] = true;
+//             count++;
+//         }
+//     });
 
-    if (count > 0) {
-        console.log(`Знайдено ${count} книг у списку бажань. Переносимо для користувача: ${currentUser}...`);
+//     if (count > 0) {
+//         console.log(`Знайдено ${count} книг у списку бажань. Переносимо для користувача: ${currentUser}...`);
         
-        // 2. Оновлюємо тільки прапорці інтересу всередині папки поточного користувача
-        database.ref(`user_data/${currentUser}`).update(wishlistUpdates)
-            .then(() => {
-                console.log("Список бажань успішно синхронізовано з хмарою!");
-                alert(`Успішно перенесено книг у список бажань: ${count}!`);
-            })
-            .catch(error => console.error("Помилка міграції списку бажань:", error));
-    } else {
-        alert("У твоєму локальному localStorage не знайдено книг із позначкою списку бажань.");
-    }
-}
+//         // 2. Оновлюємо тільки прапорці інтересу всередині папки поточного користувача
+//         database.ref(`user_data/${currentUser}`).update(wishlistUpdates)
+//             .then(() => {
+//                 console.log("Список бажань успішно синхронізовано з хмарою!");
+//                 alert(`Успішно перенесено книг у список бажань: ${count}!`);
+//             })
+//             .catch(error => console.error("Помилка міграції списку бажань:", error));
+//     } else {
+//         alert("У твоєму локальному localStorage не знайдено книг із позначкою списку бажань.");
+//     }
+// }
 
-// Запускаємо автоматично через 2.5 секунди після завантаження сторінки
-setTimeout(migrateWishlistToFirebase, 2500);
+// // Запускаємо автоматично через 2.5 секунди після завантаження сторінки
+// setTimeout(migrateWishlistToFirebase, 2500);
 
 
 document.addEventListener('DOMContentLoaded', loadBooks);
