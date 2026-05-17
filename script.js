@@ -848,38 +848,50 @@ if (!currentUser) {
     localStorage.setItem('library_user_id', currentUser);
 }
 
-function migrateLocalBooksToFirebase() {
-    // 1. Спробуємо дістати твій старий список книг
-    // Якщо у твоїй змінній storageKey інша назва (наприклад, 'books'), впиши її сюди
-    const localData = localStorage.getItem('myLibraryBooks'); 
+function migrateLocalStatsToFirebase() {
+    // 1. Беремо старі книги з localStorage (перевіряємо твій ключ 'myLibraryBooks')
+    const localData = localStorage.getItem('myLibraryBooks');
     
     if (!localData) {
-        console.warn("У localStorage не знайдено старих книг.");
+        console.warn("У localStorage не знайдено старих книг для міграції статусів.");
+        alert("Старих даних у цьому браузері не знайдено.");
         return;
     }
 
     const localBooks = JSON.parse(localData);
     
     if (localBooks && localBooks.length > 0) {
-        console.log(`Знайдено ${localBooks.length} книг. Запускаємо автоміграцію...`);
+        console.log(`Знайдено ${localBooks.length} локальних книг. Починаємо міграцію відміток для користувача: ${currentUser}...`);
         
-        // 2. Записуємо масив у Firebase
-        database.ref('books').set(localBooks)
+        // Створюємо об'єкт, де накопичимо всі особисті дані
+        const userUpdates = {};
+        
+        localBooks.forEach(book => {
+            // Переносимо лише ті книги, де є якісь відмітки, щоб не копіювати порожні дефолти
+            if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
+                userUpdates[book.id] = {
+                    isRead: book.isRead || false,
+                    rating: book.rating || 0,
+                    isCurrentlyReading: book.isCurrentlyReading || false,
+                    readDate: book.readDate || '',
+                    inWishlist: book.inWishlist || false
+                };
+            }
+        });
+
+        // 2. Відправляємо пакетним оновленням прямо в папку поточного користувача
+        database.ref(`user_data/${currentUser}`).update(userUpdates)
             .then(() => {
-                console.log("Усі старі книги успішно перенесені в хмару!");
-                alert(`Успішно перенесено книг: ${localBooks.length}! Тепер видали код міграції.`);
+                console.log(`УРА! Усі особисті відмітки (прочитано, дати, оцінки) успішно перенесено для користувача ${currentUser}!`);
+                alert(`Успішно перенесено відмітки для ${Object.keys(userUpdates).length} книг!`);
             })
             .catch((error) => {
-                console.error("Помилка міграції:", error);
+                console.error("Помилка під час міграції статусів:", error);
             });
     }
 }
 
-// Запускаємо міграцію автоматично ОДРАЗУ при завантаженні файлу
-// Без використання консолі браузера!
-setTimeout(migrateLocalBooksToFirebase, 2000);
-
-// Робимо функцію доступною з консолі браузера
-window.migrateLocalBooksToFirebase = migrateLocalBooksToFirebase;
+// Автоматичний запуск через 3 секунди після завантаження сторінки
+setTimeout(migrateLocalStatsToFirebase, 3000);
 
 document.addEventListener('DOMContentLoaded', loadBooks);
