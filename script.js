@@ -892,65 +892,65 @@ if (!currentUser) {
     localStorage.setItem('library_user_id', currentUser);
 }
 
-function totalResetAndFullMigration() {
-    // 1. Повністю стираємо стару гілку книг у Firebase, де виникло задвоєння
-    database.ref('books').remove()
-        .then(() => {
-            console.log("1. Стару базу книг успішно очищено.");
+// function totalResetAndFullMigration() {
+//     // 1. Повністю стираємо стару гілку книг у Firebase, де виникло задвоєння
+//     database.ref('books').remove()
+//         .then(() => {
+//             console.log("1. Стару базу книг успішно очищено.");
 
-            // 2. Беремо оригінальний масив з твого localStorage на телефоні
-            const localData = localStorage.getItem('myLibraryBooks');
-            if (!localData) {
-                alert("Помилка: Не знайдено localStorage на цьому телефоні! Перевірте, чи зайшли саме з того браузера.");
-                return;
-            }
+//             // 2. Беремо оригінальний масив з твого localStorage на телефоні
+//             const localData = localStorage.getItem('myLibraryBooks');
+//             if (!localData) {
+//                 alert("Помилка: Не знайдено localStorage на цьому телефоні! Перевірте, чи зайшли саме з того браузера.");
+//                 return;
+//             }
 
-            const localBooks = JSON.parse(localData);
-            const globalBooksUpdate = {};
-            const userStatsUpdate = {};
+//             const localBooks = JSON.parse(localData);
+//             const globalBooksUpdate = {};
+//             const userStatsUpdate = {};
 
-            localBooks.forEach(book => {
+//             localBooks.forEach(book => {
               
-                globalBooksUpdate[book.id] = {
-                    id: book.id,
-                    title: book.title || '',
-                    author: book.author || '',
-                    imageURL: book.imageURL || '',
-                    pages: parseInt(book.pages) || 0,
-                    publisher: book.publisher || '',
-                    type: book.type || 'paper'
-                };
+//                 globalBooksUpdate[book.id] = {
+//                     id: book.id,
+//                     title: book.title || '',
+//                     author: book.author || '',
+//                     imageURL: book.imageURL || '',
+//                     pages: parseInt(book.pages) || 0,
+//                     publisher: book.publisher || '',
+//                     type: book.type || 'paper'
+//                 };
 
-                // ВРАХОВУЄМО ВСІ ОЦІНКИ ТА ДАТИ: Якщо книга має позначки — готуємо їх для папки "Ігор"
-                if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
-                    userStatsUpdate[book.id] = {
-                        isRead: book.isRead || false,
-                        rating: book.rating || 0,
-                        isCurrentlyReading: book.isCurrentlyReading || false,
-                        readDate: book.readDate || '',
-                        inWishlist: book.inWishlist || false
-                    };
-                }
-            });
+//                 // ВРАХОВУЄМО ВСІ ОЦІНКИ ТА ДАТИ: Якщо книга має позначки — готуємо їх для папки "Ігор"
+//                 if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
+//                     userStatsUpdate[book.id] = {
+//                         isRead: book.isRead || false,
+//                         rating: book.rating || 0,
+//                         isCurrentlyReading: book.isCurrentlyReading || false,
+//                         readDate: book.readDate || '',
+//                         inWishlist: book.inWishlist || false
+//                     };
+//                 }
+//             });
 
-            // 3. Заливаємо чисті книги в спільну гілку
-            return database.ref('books').set(globalBooksUpdate)
-                .then(() => {
-                    console.log("2. Чисті книги успішно завантажено в спільну базу.");
+//             // 3. Заливаємо чисті книги в спільну гілку
+//             return database.ref('books').set(globalBooksUpdate)
+//                 .then(() => {
+//                     console.log("2. Чисті книги успішно завантажено в спільну базу.");
                     
-                    // 4. Перезаписуємо твої особисті оцінки/дати в папку "Ігор"
-                    return database.ref(`user_data/${currentUser}`).set(userStatsUpdate);
-                });
-        })
-        .then(() => {
-            console.log(`3. Усі особисті оцінки та дати успішно відновлено для користувача: ${currentUser}`);
-            alert("ІДЕАЛЬНО! Базу повністю очищено від дублів, книги залито наново, а твої оцінки, дати та статистика повністю відновлені!");
-        })
-        .catch(error => console.error("Помилка повної міграції:", error));
-}
+//                     // 4. Перезаписуємо твої особисті оцінки/дати в папку "Ігор"
+//                     return database.ref(`user_data/${currentUser}`).set(userStatsUpdate);
+//                 });
+//         })
+//         .then(() => {
+//             console.log(`3. Усі особисті оцінки та дати успішно відновлено для користувача: ${currentUser}`);
+//             alert("ІДЕАЛЬНО! Базу повністю очищено від дублів, книги залито наново, а твої оцінки, дати та статистика повністю відновлені!");
+//         })
+//         .catch(error => console.error("Помилка повної міграції:", error));
+// }
 
-// Автоматичний запуск через 2.5 секунди після старту додатка
-setTimeout(totalResetAndFullMigration, 2500);
+// // Автоматичний запуск через 2.5 секунди після старту додатка
+// setTimeout(totalResetAndFullMigration, 2500);
 
 function migrateWishlistToFirebase() {
     // 1. Беремо старі дані з твого localStorage на телефоні
