@@ -477,65 +477,91 @@ window.switchSection = switchSection;
 
 // --- Stats & System Updates ---
 function updateStats() {
-    // Фільтруємо книги (виключаємо список бажань зі статистики паперових/прочитаних книг)
-    const realBooks = books.filter(b => !b.inWishlist);
-    const readBooks = realBooks.filter(b => b.isRead === true);
-    const unreadBooks = realBooks.filter(b => !b.isRead);
+    // Якщо масив порожній — чистимо екрани й виходимо
+    if (!books || books.length === 0) {
+        if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = '0';
+        if(document.getElementById('statRead')) document.getElementById('statRead').textContent = '0';
+        if(document.getElementById('statUnread')) document.getElementById('statUnread').textContent = '0';
+        if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = '0%';
+        if(document.getElementById('statPages')) document.getElementById('statPages').textContent = '0';
+        return;
+    }
+
+    // ВІДФІЛЬТРОВУЄМО: Статистика рахується ТІЛЬКИ по реальних книгах (без списку бажань)
+    const actualBooks = books.filter(b => !b.inWishlist);
+
+    // 1. Рахуємо загальні цифри
+    const total = actualBooks.length;
+    const readBooks = actualBooks.filter(b => b.isRead === true);
+    const unreadBooks = actualBooks.filter(b => b.isRead !== true); 
     
-    const total = realBooks.length;
     const readCount = readBooks.length;
     const unreadCount = unreadBooks.length;
     const percentage = total > 0 ? Math.round((readCount / total) * 100) : 0;
-    const totalPages = readBooks.reduce((sum, b) => sum + (parseInt(b.pages) || 0), 0);
+    
+    // Рахуємо сторінки
+    const totalPages = readBooks.reduce((sum, book) => sum + (parseInt(book.pages) || 0), 0);
 
-    // Оновлюємо цифри на картках
-    if (document.getElementById('statTotal')) document.getElementById('statTotal').textContent = total;
-    if (document.getElementById('statRead')) document.getElementById('statRead').textContent = readCount;
-    if (document.getElementById('statUnread')) document.getElementById('statUnread').textContent = unreadCount;
-    if (document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = percentage + '%';
-    if (document.getElementById('statPages')) document.getElementById('statPages').textContent = totalPages.toLocaleString();
+    // Виводимо цифри на екран (цифрова картка непрочитаних)
+    if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = total;
+    if(document.getElementById('statRead')) document.getElementById('statRead').textContent = readCount;
+    if(document.getElementById('statUnread')) document.getElementById('statUnread').textContent = unreadCount;
+    if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = percentage + '%';
+    if(document.getElementById('statPages')) document.getElementById('statPages').textContent = totalPages.toLocaleString();
 
-    // 1. Деталі по типах
+    // 2. ДЕТАЛІ ПО ТИПАХ (Паперові, Електронні, Аудіо)
+    const typeCounts = actualBooks.reduce((acc, book) => {
+        const t = book.type || 'paper'; 
+        acc[t] = (acc[t] || 0) + 1;
+        return acc;
+    }, {});
+
+    const typeLabels = { 'paper': '📖 Паперові', 'ebook': '📱 Електронні', 'audio': '🎧 Аудіокниги' };
     const typeBreakdownUl = document.getElementById('statTypeBreakdown');
+    
     if (typeBreakdownUl) {
         typeBreakdownUl.innerHTML = '';
-        const types = { 
-            'paper': { label: '📖 Паперові', count: 0 }, 
-            'ebook': { label: '📱 Електронні', count: 0 }, 
-            'audio': { label: '🎧 Аудіокниги', count: 0 } 
-        };
-        
-        realBooks.forEach(b => {
-            const t = b.type || 'paper';
-            if (types[t]) types[t].count++;
-        });
-
-        Object.values(types).forEach(t => {
+        Object.keys(typeLabels).forEach(t => {
+            const count = typeCounts[t] || 0;
             const li = document.createElement('li');
-            li.style.display = 'flex';
-            li.style.justifyContent = 'space-between';
-            li.style.padding = '8px 0';
-            li.innerHTML = `<span>${t.label}</span><strong>${t.count}</strong>`;
+            li.innerHTML = `<span>${typeLabels[t]}</span><strong>${count}</strong>`;
             typeBreakdownUl.appendChild(li);
         });
     }
 
-    // 2. Список "Ще не прочитано"
-    const unreadListUl = document.getElementById('statUnread');
+    // 3. ЩЕ НЕ ПРОЧИТАНО (Список книг) — ВИПРАВЛЕНО КОНФЛІКТ ID!
+    // Замість пошуку по всьому документу, ми беремо саме списковий тег <ul> всередині картки #unreadCard
+    const unreadCardContainer = document.getElementById('unreadCard');
+    const unreadListUl = unreadCardContainer ? unreadCardContainer.querySelector('ul') : null;
+
     if (unreadListUl) {
         unreadListUl.innerHTML = '';
-        const listToShow = unreadBooks.slice(0, 10); // показуємо перші 10 книг
+        const displayUnread = unreadBooks.slice(0, 10); 
         
-        if (listToShow.length === 0) {
-            unreadListUl.innerHTML = '<li style="color:var(--text-muted); padding: 6px 0;">Усі книги прочитано! 🎉</li>';
+        if (displayUnread.length === 0) {
+            unreadListUl.innerHTML = '<li>Усі книги прочитано! 🎉</li>';
         } else {
-            listToShow.forEach(b => {
+            displayUnread.forEach(book => {
                 const li = document.createElement('li');
-                li.style.padding = '6px 0';
-                li.style.borderBottom = '1px solid var(--border-color)';
-                li.style.color = 'var(--text-color)';
-                li.textContent = `${b.title} — ${b.author}`;
+                li.textContent = `${book.title} — ${book.author}`;
                 unreadListUl.appendChild(li);
+            });
+        }
+    }
+
+    // 4. НАЙВИЩЕ ОЦІНЕНІ
+    const topRatedUl = document.getElementById('statTopRated');
+    if (topRatedUl) {
+        topRatedUl.innerHTML = '';
+        const ratedBooks = actualBooks.filter(b => b.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 5);
+        
+        if (ratedBooks.length === 0) {
+            topRatedUl.innerHTML = '<li>Немає оцінених книг</li>';
+        } else {
+            ratedBooks.forEach(book => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${book.title}</span><strong>${'★'.repeat(book.rating)}</strong>`;
+                topRatedUl.appendChild(li);
             });
         }
     }
