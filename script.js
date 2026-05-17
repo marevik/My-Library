@@ -50,42 +50,43 @@ window.onclick = (event) => {
 
 // --- Data & Rendering ---
 function loadBooks() {
-    // 1. Спочатку слухаємо загальну базу книг, яка спільна для всіх
     database.ref('books').on('value', (booksSnapshot) => {
         const allBooks = booksSnapshot.val() ? Object.values(booksSnapshot.val()) : [];
 
-        // 2. Всередині слухаємо особисту папку поточного користувача (Ігор або Дружина)
         database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
             const myData = userSnapshot.val() || {};
 
-            // 3. Об'єднуємо: беремо загальну книгу і додаємо до неї особисті статуси
             books = allBooks.map(book => {
-                // Якщо для цієї книги є твої особисті відмітки, беремо їх. Якщо ні — ставимо дефолтні
                 const myStats = myData[book.id] || { 
                     isRead: false, 
                     rating: 0, 
                     isCurrentlyReading: false,
                     readDate: '',
+                    dateRead: '', // додаємо про всяк випадок
                     inWishlist: false 
                 };
+
+                // Беремо дату, яка б назва поля не використовувалася в localStorage чи базі
+                const finalDate = myStats.readDate || myStats.dateRead || book.readDate || book.dateRead || '';
 
                 return {
                     ...book,
                     isRead: myStats.isRead,
                     rating: myStats.rating,
                     isCurrentlyReading: myStats.isCurrentlyReading,
-                    readDate: myStats.readDate,
-                    inWishlist: myStats.inWishlist
+                    inWishlist: myStats.inWishlist,
+                    // Записуємо в обох форматах, щоб функція updateStats() 100% зчитала її
+                    readDate: finalDate,
+                    dateRead: finalDate 
                 };
             });
 
             console.log(`Синхронізовано з Firebase! Спільних книг: ${books.length}. Користувач: ${currentUser}`);
             
-            // 4. Оновлюємо інтерфейс
+            // Оновлення інтерфейсу
             if (typeof displayBooks === 'function') displayBooks();
             if (typeof updateCurrentlyReadingBanner === 'function') updateCurrentlyReadingBanner();
-            // Оновлюємо статистику, щоб вона рахувалася суто по твоїх книгах
-            if (window.location.hash === '#stats' || document.getElementById('statTotal')) updateStats();
+            if (typeof updateStats === 'function') updateStats(); // примусово перераховуємо статистику
         });
     });
 }
@@ -459,18 +460,42 @@ function updateStats() {
     const totalEl = document.getElementById('statTotal');
     if (!totalEl) return; // Guard clause if stats DOM is missing
 
+    // Загальна кількість спільних книг
     totalEl.textContent = books.length;
-    document.getElementById('statRead').textContent = books.filter(b => b.isRead).length;
-    document.getElementById('statPaper').textContent = books.filter(b => b.type === 'paper' || !b.type).length;
-    document.getElementById('statEbook').textContent = books.filter(b => b.type === 'ebook').length;
-    document.getElementById('statAudio').textContent = books.filter(b => b.type === 'audio').length;
+    
+    // Рахуємо прочитані на основі ОСОБИСТИХ відміток
+    const readBooksCount = books.filter(b => b.isRead).length;
+    document.getElementById('statRead').textContent = readBooksCount;
 
+    // 1. ВИПРАВЛЕННЯ: Деталі по типах (Паперові, Електронні, Аудіо)
+    // Рахуємо типи з урахуванням того, що якщо типу немає — це паперова книга
+    const paperCount = books.filter(b => b.type === 'paper' || !b.type).length;
+    const ebookCount = books.filter(b => b.type === 'ebook').length;
+    const audioCount = books.filter(b => b.type === 'audio').length;
+
+    // Спробуємо оновити твої окремі елементи, якщо вони є
+    if (document.getElementById('statPaper')) document.getElementById('statPaper').textContent = paperCount;
+    if (document.getElementById('statEbook')) document.getElementById('statEbook').textContent = ebookCount;
+    if (document.getElementById('statAudio')) document.getElementById('statAudio').textContent = audioCount;
+
+    // Додатково заповнюємо список списку списком списків, як у твоєму HTML
+    const typeBreakdownUl = document.getElementById('statTypeBreakdown');
+    if (typeBreakdownUl) {
+        typeBreakdownUl.innerHTML = `
+            <li><span>📖 Паперові</span><strong>${paperCount}</strong></li>
+            <li><span>📱 Електронні</span><strong>${ebookCount}</strong></li>
+            <li><span>🎧 Аудіокниги</span><strong>${audioCount}</strong></li>
+        `;
+    }
+
+    // Середня оцінка
     const ratedBooks = books.filter(b => b.rating > 0);
     const avgRating = ratedBooks.length > 0
         ? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
         : 'N/A';
     document.getElementById('statAvgRating').textContent = avgRating;
 
+    // Допоміжна функція для топ-елементів
     const getTopItems = (items, limit = 15) => {
         const counts = items.reduce((acc, item) => {
             if (item) acc[item] = (acc[item] || 0) + 1;
@@ -481,6 +506,7 @@ function updateStats() {
             .slice(0, limit);
     };
 
+    // Топ авторів
     const authors = books.map(b => b.author).filter(Boolean);
     const topAuthors = getTopItems(authors);
     const topAuthorsList = document.getElementById('statTopAuthors');
@@ -489,6 +515,7 @@ function updateStats() {
         : '<li>Немає даних</li>';
     document.getElementById('topAuthorsCard').style.display = authors.length > 0 ? 'block' : 'none';
 
+    // Топ видавництв
     const publishers = books.map(b => b.publisher).filter(Boolean);
     const topPublishers = getTopItems(publishers);
     const topPublishersList = document.getElementById('statTopPublishers');
@@ -497,6 +524,7 @@ function updateStats() {
         : '<li>Немає даних</li>';
     document.getElementById('topPublishersCard').style.display = publishers.length > 0 ? 'block' : 'none';
 
+    // Розподіл оцінок (зірочки)
     const ratingDist = [1, 2, 3, 4, 5].reduce((acc, rating) => {
         acc[rating] = books.filter(b => b.rating === rating).length;
         return acc;
@@ -517,12 +545,16 @@ function updateStats() {
     }).join('');
     document.getElementById('ratingDistCard').style.display = ratedBooks.length > 0 ? 'block' : 'none';
 
+    // Список бажань
     const wishlistBooks = books.filter(b => b.inWishlist);
     const wishlistEl = document.getElementById('statWishlist');
-    wishlistEl.innerHTML = wishlistBooks.length > 0
-        ? wishlistBooks.map(b => `<li><span>${b.title}</span><span style="color:var(--text-muted)"> — ${b.author}</span></li>`).join('')
-        : '<li>Список порожній</li>';
+    if (wishlistEl) {
+        wishlistEl.innerHTML = wishlistBooks.length > 0
+            ? wishlistBooks.map(b => `<li><span>${b.title}</span><span style="color:var(--text-muted)"> — ${b.author}</span></li>`).join('')
+            : '<li>Список порожній</li>';
+    }
 
+    // Прогрес-бар прочитаного
     const totalBooks = books.filter(b => !b.inWishlist).length;
     const readBooks = books.filter(b => b.isRead).length;
     const readPercent = totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
@@ -536,12 +568,24 @@ function updateStats() {
         </div>
     `;
 
+    // Найвище оцінені
     const topRated = [...books].filter(b => b.rating > 0 && !b.inWishlist).sort((a, b) => b.rating - a.rating).slice(0, 5);
     document.getElementById('statTopRated').innerHTML = topRated.length > 0
         ? topRated.map(b => `<li><span style="color:#ffca08;">${'★'.repeat(b.rating)}</span> <span>${b.title}</span></li>`).join('')
         : '<li>Немає оцінених книг</li>';
 
-    // Pages Stats
+    // 2. ДОДАНО: Виведення блоку «Ще не прочитано»
+    const unreadBooksList = books.filter(b => !b.isRead && !b.inWishlist);
+    const unreadListUl = document.getElementById('statUnread');
+    if (unreadListUl) {
+        // Показуємо перші 15 непрочитаних книг, щоб список не розтягувався на кілометр
+        const displayUnread = unreadBooksList.slice(0, 15); 
+        unreadListUl.innerHTML = displayUnread.length > 0
+            ? displayUnread.map(b => `<li><span>${b.title}</span><span style="color:var(--text-muted)"> — ${b.author}</span></li>`).join('')
+            : '<li>Усі книги прочитано! 🎉</li>';
+    }
+
+    // Статистика сторінок
     const booksWithPages = books.filter(b => b.isRead && b.pages > 0);
     const pagesEl = document.getElementById('statPages');
     if (booksWithPages.length > 0) {
