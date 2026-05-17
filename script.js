@@ -848,64 +848,95 @@ if (!currentUser) {
     localStorage.setItem('library_user_id', currentUser);
 }
 
-function forceFullMigration() {
-    // 1. Беремо оригінальний ключ, де 100% лежали твої 600 книг з усіма оцінками
-    const localData = localStorage.getItem('myLibraryBooks');
+// function forceFullMigration() {
+//     // 1. Беремо оригінальний ключ
+//     const localData = localStorage.getItem('myLibraryBooks');
     
-    if (!localData) {
-        console.error("Помилка: Ключ myLibraryBooks порожній у цьому браузері.");
-        alert("Старих даних не знайдено в localStorage цього пристрою.");
-        return;
-    }
+//     if (!localData) {
+//         console.error("Помилка: Ключ myLibraryBooks порожній у цьому браузері.");
+//         alert("Старих даних не знайдено в localStorage цього пристрою.");
+//         return;
+//     }
 
-    const localBooks = JSON.parse(localData);
-    console.log(`Критична міграція: знайдено ${localBooks.length} книг у локальній пам'яті.`);
+//     const localBooks = JSON.parse(localData);
+//     console.log(`Критична міграція: знайдено ${localBooks.length} книг у локальній пам'яті.`);
 
-    const globalBooksUpdate = {};
-    const userStatsUpdate = {};
+//     const globalBooksUpdate = {};
+//     const userStatsUpdate = {};
 
-    localBooks.forEach(book => {
-        // Формуємо чисту книгу для загальної бази (без твоїх особистих позначок)
-        globalBooksUpdate[book.id] = {
-            id: book.id,
-            title: book.title || '',
-            author: book.author || '',
-            imageURL: book.imageURL || '',
-            pages: parseInt(book.pages) || 0,
-            publisher: book.publisher || '',
-            type: book.type || 'paper'
-        };
+//     localBooks.forEach(book => {
+//         // Формуємо чисту книгу для загальної бази (без твоїх особистих позначок)
+//         globalBooksUpdate[book.id] = {
+//             id: book.id,
+//             title: book.title || '',
+//             author: book.author || '',
+//             imageURL: book.imageURL || '',
+//             pages: parseInt(book.pages) || 0,
+//             publisher: book.publisher || '',
+//             type: book.type || 'paper'
+//         };
 
-        // Витягуємо твої особисті статуси, які були всередині цієї книги, і готуємо для папки "Ігор"
-        if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
-            userStatsUpdate[book.id] = {
-                isRead: book.isRead || false,
-                rating: book.rating || 0,
-                isCurrentlyReading: book.isCurrentlyReading || false,
-                readDate: book.readDate || '',
-                inWishlist: book.inWishlist || false
-            };
-        }
-    });
+//         // Витягуємо твої особисті статуси, які були всередині цієї книги, і готуємо для папки "Ігор"
+//         if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
+//             userStatsUpdate[book.id] = {
+//                 isRead: book.isRead || false,
+//                 rating: book.rating || 0,
+//                 isCurrentlyReading: book.isCurrentlyReading || false,
+//                 readDate: book.readDate || '',
+//                 inWishlist: book.inWishlist || false
+//             };
+//         }
+//     });
 
-    // 2. Заливаємо книги в загальну базу
-    database.ref('books').update(globalBooksUpdate)
-        .then(() => {
-            console.log("1. Загальні книги успішно оновлено в Firebase.");
+//     // 2. Заливаємо книги в загальну базу
+//     database.ref('books').update(globalBooksUpdate)
+//         .then(() => {
+//             console.log("1. Загальні книги успішно оновлено в Firebase.");
             
-            // 3. Заливаємо особисті статуси в папку "Ігор"
-            return database.ref(`user_data/${currentUser}`).update(userStatsUpdate);
-        })
-        .then(() => {
-            console.log(`2. Особисті статуси успішно перенесено для користувача: ${currentUser}`);
-            alert(`Успішно! Перенесено книг: ${localBooks.length}. Статуси відновлено!`);
-        })
-        .catch(error => {
-            console.error("Помилка повної міграції:", error);
+//             // 3. Заливаємо особисті статуси в папку "Ігор"
+//             return database.ref(`user_data/${currentUser}`).update(userStatsUpdate);
+//         })
+//         .then(() => {
+//             console.log(`2. Особисті статуси успішно перенесено для користувача: ${currentUser}`);
+//             alert(`Успішно! Перенесено книг: ${localBooks.length}. Статуси відновлено!`);
+//         })
+//         .catch(error => {
+//             console.error("Помилка повної міграції:", error);
+//         });
+// }
+
+// // Запускаємо автоматично через 2 секунди після завантаження сторінки
+// setTimeout(forceFullMigration, 2000);
+
+function removeDuplicateBooks() {
+    database.ref('books').once('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        const seenBooks = new Set();
+        const duplicatesCount = 0;
+
+        Object.keys(data).forEach(bookId => {
+            const book = data[bookId];
+            // Створюємо унікальний ключ на основі назви та автора (ігноруючи регістр та пробіли)
+            const uniqueKey = `${book.title.trim().toLowerCase()}|||${book.author.trim().toLowerCase()}`;
+
+            if (seenBooks.has(uniqueKey)) {
+                // Якщо таку книгу вже бачили — видаляємо цей дублікат за його ID
+                database.ref(`books/${bookId}`).remove();
+                duplicatesCount++;
+            } else {
+                // Якщо книга унікальна — запам'ятовуємо її
+                seenBooks.add(uniqueKey);
+            }
         });
+
+        console.log(`Очищення завершено! Видалено дублікатів: ${duplicatesCount}`);
+        alert(`Успішно видалено дублікатів книг: ${duplicatesCount}!`);
+    });
 }
 
-// Запускаємо автоматично через 2 секунди після завантаження сторінки
-setTimeout(forceFullMigration, 2000);
+// Запускаємо автоматично через 2 секунди після старту
+setTimeout(removeDuplicateBooks, 2000);
 
 document.addEventListener('DOMContentLoaded', loadBooks);
