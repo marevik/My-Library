@@ -952,5 +952,45 @@ function totalResetAndFullMigration() {
 // Автоматичний запуск через 2.5 секунди після старту додатка
 setTimeout(totalResetAndFullMigration, 2500);
 
+function migrateWishlistToFirebase() {
+    // 1. Беремо старі дані з твого localStorage на телефоні
+    const localData = localStorage.getItem('myLibraryBooks');
+    
+    if (!localData) {
+        console.warn("У localStorage не знайдено книг для міграції списку бажань.");
+        alert("Помилка: localStorage порожній на цьому пристрої.");
+        return;
+    }
+
+    const localBooks = JSON.parse(localData);
+    const wishlistUpdates = {};
+    let count = 0;
+
+    localBooks.forEach(book => {
+        // Якщо книга була в списку бажань, готуємо оновлення для Firebase
+        if (book.inWishlist === true) {
+            wishlistUpdates[`${book.id}/inWishlist`] = true;
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        console.log(`Знайдено ${count} книг у списку бажань. Переносимо для користувача: ${currentUser}...`);
+        
+        // 2. Оновлюємо тільки прапорці інтересу всередині папки поточного користувача
+        database.ref(`user_data/${currentUser}`).update(wishlistUpdates)
+            .then(() => {
+                console.log("Список бажань успішно синхронізовано з хмарою!");
+                alert(`Успішно перенесено книг у список бажань: ${count}!`);
+            })
+            .catch(error => console.error("Помилка міграції списку бажань:", error));
+    } else {
+        alert("У твоєму локальному localStorage не знайдено книг із позначкою списку бажань.");
+    }
+}
+
+// Запускаємо автоматично через 2.5 секунди після завантаження сторінки
+setTimeout(migrateWishlistToFirebase, 2500);
+
 
 document.addEventListener('DOMContentLoaded', loadBooks);
