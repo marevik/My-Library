@@ -518,6 +518,202 @@ function updateStats() {
         if(document.getElementById('statRead')) document.getElementById('statRead').textContent = '0';
         
         if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = '0%';
+
+        // Типи книг
+
+if(document.getElementById('statPaper'))
+
+document.getElementById('statPaper').textContent = actualBooks.filter(b => (b.type || 'paper') === 'paper').length;
+
+if(document.getElementById('statEbook'))
+
+document.getElementById('statEbook').textContent = actualBooks.filter(b => b.type === 'ebook').length;
+
+if(document.getElementById('statAudio'))
+
+document.getElementById('statAudio').textContent = actualBooks.filter(b => b.type === 'audio').length;
+
+
+
+// Середній рейтинг
+
+const ratedBooks = actualBooks.filter(b => b.rating > 0);
+
+const avgRating = ratedBooks.length > 0
+
+? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
+
+: 'N/A';
+
+if(document.getElementById('statAvgRating'))
+
+document.getElementById('statAvgRating').textContent = avgRating;
+
+
+
+// Розподіл рейтингів
+
+const ratingDist = [1,2,3,4,5].reduce((acc, r) => {
+
+acc[r] = actualBooks.filter(b => b.rating === r).length;
+
+return acc;
+
+}, {});
+
+const maxRatingCount = Math.max(...Object.values(ratingDist), 1);
+
+const ratingDistContainer = document.getElementById('ratingDist');
+
+if (ratingDistContainer) {
+
+ratingDistContainer.innerHTML = Object.entries(ratingDist).map(([rating, count]) => {
+
+const width = Math.round((count / maxRatingCount) * 100);
+
+return `
+
+<div style="display:flex; align-items:center; margin-bottom:8px; gap:8px;">
+
+<span style="width:60px; color:#ffca08;">${'★'.repeat(parseInt(rating))}</span>
+
+<div style="flex:1; background:var(--border-color); border-radius:4px; overflow:hidden; height:10px;">
+
+<div style="width:${width}%; height:100%; background:var(--accent-color); border-radius:4px;"></div>
+
+</div>
+
+<span style="width:25px; text-align:right; color:var(--text-muted); font-size:0.85rem;">${count}</span>
+
+</div>`;
+
+}).join('');
+
+const ratingDistCard = document.getElementById('ratingDistCard');
+
+if (ratingDistCard) ratingDistCard.style.display = ratedBooks.length > 0 ? 'block' : 'none';
+
+}
+
+
+
+// Прогрес читання
+
+const totalBooks = actualBooks.length;
+
+const readPercent = totalBooks > 0 ? Math.round((readCount / totalBooks) * 100) : 0;
+
+const readProgressEl = document.getElementById('readProgress');
+
+if (readProgressEl) {
+
+readProgressEl.innerHTML = `
+
+<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.9rem; color:var(--text-muted);">
+
+<span>Прочитано ${readCount} з ${totalBooks}</span>
+
+<span>${readPercent}%</span>
+
+</div>
+
+<div style="background:var(--border-color); border-radius:8px; overflow:hidden; height:14px;">
+
+<div style="width:${readPercent}%; height:100%; background:var(--accent-color); border-radius:8px;"></div>
+
+</div>`;
+
+}
+
+
+
+// Прочитано по місяцях
+
+const readByMonth = {};
+
+actualBooks.filter(b => b.isRead && b.readDate).forEach(b => {
+
+const [year, month] = b.readDate.split('-');
+
+const label = new Date(year, month - 1).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
+
+readByMonth[b.readDate] = readByMonth[b.readDate] || { label, count: 0 };
+
+readByMonth[b.readDate].count++;
+
+});
+
+const sortedMonths = Object.keys(readByMonth).sort().reverse();
+
+const maxMonthCount = Math.max(...sortedMonths.map(k => readByMonth[k].count), 1);
+
+const readByMonthEl = document.getElementById('statReadByMonth');
+
+if (readByMonthEl) {
+
+readByMonthEl.innerHTML = sortedMonths.length > 0
+
+? sortedMonths.map(key => {
+
+const { label, count } = readByMonth[key];
+
+const width = Math.round((count / maxMonthCount) * 100);
+
+return `
+
+<li style="flex-direction:column; align-items:flex-start; gap:4px;">
+
+<div style="display:flex; justify-content:space-between; width:100%;">
+
+<span>${label}</span>
+
+<span style="color:var(--text-muted);">${count} кн.</span>
+
+</div>
+
+<div style="width:100%; background:var(--border-color); border-radius:4px; overflow:hidden; height:6px;">
+
+<div style="width:${width}%; height:100%; background:var(--accent-color); border-radius:4px;"></div>
+
+</div>
+
+</li>`;
+
+}).join('')
+
+: '<li>Немає даних — вкажіть дату прочитання у деталях книги</li>';
+
+const readByMonthCard = document.getElementById('readByMonthCard');
+
+if (readByMonthCard) readByMonthCard.style.display = sortedMonths.length > 0 ? 'block' : 'none';
+
+}
+
+
+
+// Wishlist в статистиці
+
+const wishlistBooks = books.filter(b => b.inWishlist);
+
+const statWishlistEl = document.getElementById('statWishlist');
+
+if (statWishlistEl) {
+
+statWishlistEl.innerHTML = wishlistBooks.length > 0
+
+? wishlistBooks.map(b => `
+
+<li>
+
+<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.title}</span>
+
+<span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
+
+</li>`).join('')
+
+: '<li>Список порожній</li>';
+
+}
        
         return;
     }
