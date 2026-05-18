@@ -1246,50 +1246,7 @@ function shareWishlist() {
     URL.revokeObjectURL(a.href);
 }
 
-function migrateWifeData() {
-    const localData = localStorage.getItem('myLibraryBooks');
-    
-    if (!localData) {
-        alert('Помилка: localStorage порожній на цьому телефоні!');
-        return;
-    }
 
-    const localBooks = JSON.parse(localData);
-    const userStatsUpdate = {};
-    let count = 0;
-
-    localBooks.forEach(book => {
-        // Переносимо тільки особисті статуси
-        if (book.isRead || book.rating > 0 || book.isCurrentlyReading || 
-            book.readDate || book.inWishlist) {
-            userStatsUpdate[book.id] = {
-                isRead: book.isRead || false,
-                rating: book.rating || 0,
-                isCurrentlyReading: book.isCurrentlyReading || false,
-                readDate: book.readDate || '',
-                inWishlist: book.inWishlist || false
-            };
-            count++;
-        }
-    });
-
-    if (count === 0) {
-        alert('Не знайдено жодних особистих даних для міграції.');
-        return;
-    }
-
-    console.log(`Знайдено ${count} книг з особистими даними. Переносимо для: ${currentUser}...`);
-
-    database.ref(`user_data/${currentUser}`).update(userStatsUpdate)
-        .then(() => {
-            alert(`✅ Успішно перенесено ${count} книг для користувача: ${currentUser}!`);
-        })
-        .catch(error => {
-            console.error('Помилка міграції:', error);
-            alert('Помилка міграції: ' + error.message);
-        });
-}
-window.migrateWifeData = migrateWifeData;
 window.shareWishlist = shareWishlist;
 
 
