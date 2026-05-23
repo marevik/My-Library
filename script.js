@@ -79,17 +79,16 @@ function loadBooks() {
                     readDate: '',
                     inWishlist: false 
                 };
-
-                return {
-                    ...book,
-                    isRead: myStats.isRead !== undefined ? myStats.isRead : (book.isRead || false),
-                    rating: myStats.rating !== undefined ? myStats.rating : (book.rating || 0),
-                    isCurrentlyReading: myStats.isCurrentlyReading !== undefined ? myStats.isCurrentlyReading : (book.isCurrentlyReading || false),
-                    inWishlist: myStats.inWishlist !== undefined ? myStats.inWishlist : (book.inWishlist || false),
-                    readDate: myStats.readDate || book.readDate || '',
-                    inWishlist: myStats.inWishlist !== undefined ? myStats.inWishlist : (book.inWishlist || false)
-                };
-            });
+        return {
+        ...book,
+        isRead: myStats.isRead || false,
+        rating: myStats.rating || 0,
+        isCurrentlyReading: myStats.isCurrentlyReading || false,
+        inWishlist: myStats.inWishlist || false,
+        readDate: myStats.readDate || '',
+        hidden: myStats.hidden || false  // ← додай це
+    };
+}).filter(b => !b.hidden && b.id && b.title);
 
             console.log(`Синхронізовано з Firebase! Спільних книг: ${books.length}. Користувач: ${currentUser}`);
             
@@ -255,9 +254,9 @@ const onAddSubmit = (e) => {
     
     // Перевірка на дублікат
     const duplicate = books.find(b => 
-        b.title.toLowerCase() === titleVal.toLowerCase() && 
-        b.author.toLowerCase() === authorVal.toLowerCase()
-    );
+    (b.title || '').toLowerCase() === titleVal.toLowerCase() && 
+    (b.author || '').toLowerCase() === authorVal.toLowerCase()
+);
     if (duplicate) {
         if (!confirm(`Книга "${titleVal}" вже є в бібліотеці. Додати ще раз?`)) return;
     }
@@ -798,18 +797,25 @@ document.getElementById('saveDetailsBtn').onclick = () => {
 };
 
 document.getElementById('deleteInDetailsBtn').onclick = function() {
-    if (!currentDetailsId || !confirm("Видалити цю книгу для всіх користувачів?")) return;
+    if (!currentDetailsId) return;
     
-    closeDetailsModal();
+    const book = books.find(b => b.id === currentDetailsId);
+    const isInWishlist = book && book.inWishlist;
     
-    // Видаляємо книгу із загального списку
-    database.ref(`books/${currentDetailsId}`).remove()
-        .then(() => {
-            console.log("Книгу видалено із загальної бази.");
-            // Також чистимо особисті відмітки поточного користувача, щоб не займали місце
-            database.ref(`user_data/${currentUser}/${currentDetailsId}`).remove();
-        })
-        .catch(error => console.error("Помилка видалення книги:", error));
+    if (isInWishlist) {
+        // Книга в wishlist — просто ховаємо її для себе
+        if (!confirm("Видалити цю книгу зі свого списку бажань?")) return;
+        database.ref(`user_data/${currentUser}/${currentDetailsId}`).update({
+            inWishlist: false,
+            hidden: true  // ← прихована тільки для тебе
+        }).then(() => closeDetailsModal());
+    } else {
+        // Звичайна книга — видаляємо для всіх
+        if (!confirm("Видалити цю книгу для всіх користувачів?")) return;
+        database.ref(`books/${currentDetailsId}`).remove();
+        database.ref(`user_data/${currentUser}/${currentDetailsId}`).remove();
+        closeDetailsModal();
+    }
 };
 
 document.getElementById('goToEditBtn').onclick = function() {
