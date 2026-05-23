@@ -65,8 +65,7 @@ window.onclick = (event) => {
 function loadBooks() {
     // 1. Спочатку слухаємо загальну базу книг, яка спільна для всіх
     database.ref('books').on('value', (booksSnapshot) => {
-        const allBooks = booksSnapshot.val() ? Object.values(booksSnapshot.val()) : [];
-
+        const allBooks = booksSnapshot.val() ? Object.values(booksSnapshot.val()).sort((a, b) => b.id - a.id) : [];
         // 2. Всередині слухаємо особисту папку поточного користувача (Ігор)
         database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
             const myData = userSnapshot.val() || {};
@@ -128,10 +127,10 @@ function displayBooks() {
     // Пошук
     if (currentSearchQuery) {
         const query = currentSearchQuery.toLowerCase();
-        booksToDisplay = booksToDisplay.filter(b =>
-            b.title.toLowerCase().includes(query) ||
-            b.author.toLowerCase().includes(query)
-        );
+        booksToDisplay = booksToDisplay.filter(b => 
+    (b.title || '').toLowerCase().includes(query) || 
+    (b.author || '').toLowerCase().includes(query)
+);
     }
 
     // Фільтр по видавництву
@@ -142,9 +141,9 @@ function displayBooks() {
     // Сортування
     switch (currentSortOrder) {
         case 'title-asc':
-            booksToDisplay.sort((a, b) => a.title.localeCompare(b.title)); break;
+    booksToDisplay.sort((a, b) => (a.title || '').localeCompare(b.title || '')); break;
         case 'title-desc':
-            booksToDisplay.sort((a, b) => b.title.localeCompare(a.title)); break;
+    booksToDisplay.sort((a, b) => (b.title || '').localeCompare(a.title || '')); break;
         case 'publisher-asc':
             booksToDisplay.sort((a, b) => (a.publisher || '').localeCompare(b.publisher || '')); break;
         case 'publisher-desc':
@@ -172,7 +171,7 @@ function displayBooks() {
 }
 
 
-    function renderWishlist() {
+function renderWishlist() {  
     const container = document.getElementById('wishlistList');
     if (!container) return;
     const wishlistBooks = books.filter(b => b.inWishlist);
@@ -191,10 +190,10 @@ function createBookCard(book, container) {
     if (book.isRead) card.classList.add('read');
 
     // Виправлення блокування картинок телефонами (Mixed Content)
-    let coverUrl = book.imageURL || 'placeholder.png';
-    if (coverUrl.startsWith('http://')) {
-        coverUrl = coverUrl.replace('http://', 'https://');
-    }
+    let coverUrl = book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo';
+if (coverUrl.startsWith('http://')) {
+    coverUrl = coverUrl.replace('http://', 'https://');
+}
 
     const ratingStars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
 
@@ -245,20 +244,37 @@ function renderBooks(arr) {
 // --- Actions & Event Listeners ---
 const onAddSubmit = (e) => {
     e.preventDefault();
-    const typeSelect = document.getElementById('addBookType');
+    const titleVal = document.getElementById('title').value.trim();
+    const authorVal = document.getElementById('author').value.trim();
+
+    // Перевірка що поля не порожні
+    if (!titleVal || !authorVal) {
+        alert('Введіть назву і автора книги!');
+        return;
+    }
+    
+    // Перевірка на дублікат
+    const duplicate = books.find(b => 
+        b.title.toLowerCase() === titleVal.toLowerCase() && 
+        b.author.toLowerCase() === authorVal.toLowerCase()
+    );
+    if (duplicate) {
+        if (!confirm(`Книга "${titleVal}" вже є в бібліотеці. Додати ще раз?`)) return;
+    }
+
     const newBookId = Date.now();
+    const typeSelect = document.getElementById('addBookType');
     
     const newBook = { 
         id: newBookId, 
-        title: document.getElementById('title').value, 
-        author: document.getElementById('author').value, 
+        title: titleVal, 
+        author: authorVal, 
         imageURL: document.getElementById('imageURL').value,
         pages: parseInt(document.getElementById('pages').value) || 0,
         publisher: document.getElementById('publisher').value,
         type: typeSelect ? typeSelect.value : 'paper'
     };
 
-    // Записуємо нову книгу безпосередньо в її особистий вузол за ID
     database.ref(`books/${newBookId}`).set(newBook)
         .then(() => {
             console.log("Нову книгу додано в спільну бібліотеку!");
@@ -1245,9 +1261,50 @@ function shareWishlist() {
     a.click();
     URL.revokeObjectURL(a.href);
 }
-
-
 window.shareWishlist = shareWishlist;
+// function migrateWifeData() {
+//     const localData = localStorage.getItem('myLibraryBooks');
+    
+//     if (!localData) {
+//         alert('Помилка: localStorage порожній на цьому телефоні!');
+//         return;
+//     }
 
+//     const localBooks = JSON.parse(localData);
+//     const userStatsUpdate = {};
+//     let count = 0;
+
+//     localBooks.forEach(book => {
+//         // Переносимо тільки особисті статуси
+//         if (book.isRead || book.rating > 0 || book.isCurrentlyReading || 
+//             book.readDate || book.inWishlist) {
+//             userStatsUpdate[book.id] = {
+//                 isRead: book.isRead || false,
+//                 rating: book.rating || 0,
+//                 isCurrentlyReading: book.isCurrentlyReading || false,
+//                 readDate: book.readDate || '',
+//                 inWishlist: book.inWishlist || false
+//             };
+//             count++;
+//         }
+//     });
+
+//     if (count === 0) {
+//         alert('Не знайдено жодних особистих даних для міграції.');
+//         return;
+//     }
+
+//     console.log(`Знайдено ${count} книг з особистими даними. Переносимо для: ${currentUser}...`);
+
+//     database.ref(`user_data/${currentUser}`).update(userStatsUpdate)
+//         .then(() => {
+//             alert(`✅ Успішно перенесено ${count} книг для користувача: ${currentUser}!`);
+//         })
+//         .catch(error => {
+//             console.error('Помилка міграції:', error);
+//             alert('Помилка міграції: ' + error.message);
+//         });
+// }
+// window.migrateWifeData = migrateWifeData;
 
 document.addEventListener('DOMContentLoaded', loadBooks);
