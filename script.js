@@ -61,54 +61,56 @@ window.onclick = (event) => {
     if (event.target === detailsModal) closeDetailsModal(); 
 };
 
+let allBooksRaw = [];
+let userDataRaw = {};
+
+function syncAndDisplay() {
+    // Об'єднуємо: беремо загальну книгу і додаємо до неї особисті статуси
+    books = allBooksRaw.map(book => {
+        const myStats = userDataRaw[book.id] || { 
+            isRead: false, 
+            rating: 0, 
+            isCurrentlyReading: false,
+            readDate: '',
+            inWishlist: false 
+        };
+        return {
+            ...book,
+            isRead: myStats.isRead || false,
+            rating: myStats.rating || 0,
+            isCurrentlyReading: myStats.isCurrentlyReading || false,
+            inWishlist: myStats.inWishlist || false,
+            readDate: myStats.readDate || '',
+            hidden: myStats.hidden || false  
+        };
+    }).filter(b => !b.hidden && b.id && b.title);
+
+    displayBooks();
+    updateCurrentlyReadingBanner();
+    updateStats();
+}
+
 // --- Data & Rendering ---
 function loadBooks() {
-    // 1. Спочатку слухаємо загальну базу книг, яка спільна для всіх
     database.ref('books').on('value', (booksSnapshot) => {
-        const allBooks = booksSnapshot.val() ? Object.values(booksSnapshot.val()).sort((a, b) => b.id - a.id) : [];
-        // 2. Всередині слухаємо особисту папку поточного користувача (Ігор)
-        database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
-            const myData = userSnapshot.val() || {};
-
-            // 3. Об'єднуємо: беремо загальну книгу і додаємо до неї особисті статуси
-            books = allBooks.map(book => {
-                const myStats = myData[book.id] || { 
-                    isRead: false, 
-                    rating: 0, 
-                    isCurrentlyReading: false,
-                    readDate: '',
-                    inWishlist: false 
-                };
-        return {
-        ...book,
-        isRead: myStats.isRead || false,
-        rating: myStats.rating || 0,
-        isCurrentlyReading: myStats.isCurrentlyReading || false,
-        inWishlist: myStats.inWishlist || false,
-        readDate: myStats.readDate || '',
-        hidden: myStats.hidden || false  // ← додай це
-    };
-}).filter(b => !b.hidden && b.id && b.title);
-
-            console.log(`Синхронізовано з Firebase! Спільних книг: ${books.length}. Користувач: ${currentUser}`);
-            
-            // 4. Оновлюємо інтерфейс та статистику
-            displayBooks();
-            updateCurrentlyReadingBanner();
-            updateStats();
-        });
+        allBooksRaw = booksSnapshot.val() ? Object.values(booksSnapshot.val()).sort((a, b) => b.id - a.id) : [];
+        syncAndDisplay();
+    });
+    database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
+        userDataRaw = userSnapshot.val() || {};
+        syncAndDisplay();
     });
 }
 
 function saveBooks() {
-    // Якщо у тебе є локальний масив, можеш залишати для страховки:
-    // localStorage.setItem(storageKey, JSON.stringify(books)); 
-
-    // Але головне — відправляємо весь масив або кожну книгу в Firebase:
-    // Найпростіший варіант, щоб не переробляти твій код додавання: просто оновлюємо весь вузол 'books'
-    database.ref('books').set(books)
-        .then(() => console.log("Бібліотеку успішно збережено в хмарі!"))
-        .catch(error => console.error("Помилка збереження в Firebase:", error));
+    // Замість database.ref('books').set(books) — зберігаємо кожну книгу окремо
+    const booksObj = {};
+    books.forEach(book => {
+        booksObj[book.id] = book;
+    });
+    database.ref('books').set(booksObj)
+        .then(() => console.log("Збережено!"))
+        .catch(error => console.error("Помилка:", error));
 }
 
 function displayBooks() {
@@ -269,7 +271,7 @@ const onAddSubmit = (e) => {
         title: titleVal, 
         author: authorVal, 
         imageURL: document.getElementById('imageURL').value,
-        pages: parseInt(document.getElementById('pages').value) || 0,
+        pages: parseInt(document.getElementById('pages').value) || null,
         publisher: document.getElementById('publisher').value,
         type: typeSelect ? typeSelect.value : 'paper'
     };
@@ -379,7 +381,7 @@ function openEditModal(id) {
             books[index].title = document.getElementById('title').value;
             books[index].author = document.getElementById('author').value;
             books[index].imageURL = document.getElementById('imageURL').value;
-            books[index].pages = parseInt(document.getElementById('pages').value) || 0;
+            books[index].pages = parseInt(document.getElementById('pages').value) || null;
             books[index].publisher = document.getElementById('publisher').value;
             saveBooks();
             displayBooks();
@@ -745,13 +747,14 @@ function updateStats() {
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
-    // const index = books.find(b => b.id === currentDetailsId); 
     if (currentDetailsId) {
+        const book = books.find(b => b.id === currentDetailsId);
         const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
         const isRead = document.getElementById('detailsReadStatus').checked;
         const type = document.getElementById('detailsBookType').value;
         const publisher = document.getElementById('detailsPublisher').value;
-        const pages = parseInt(document.getElementById('detailsPages').value) || 0;
+        const pagesValue = document.getElementById('detailsPages').value;
+        const pages = pagesValue ? parseInt(pagesValue) : null;
         const readDate = document.getElementById('detailsReadDate').value;
 
         // 1. Якщо цей пристрій вмикає "Зараз читаю", спочатку скидаємо цей статус 
@@ -776,8 +779,19 @@ document.getElementById('saveDetailsBtn').onclick = () => {
             rating: tempRating,
             isCurrentlyReading: isCurrently,
             readDate: readDate,
-            inWishlist: books.find(b => b.id === currentDetailsId)?.inWishlist || false
+            inWishlist: book ? (book.inWishlist || false) : false
         };
+
+        // Оновлюємо локальний масив книг для миттєвого відображення
+        if (book) {
+            book.isRead = isRead;
+            book.rating = tempRating;
+            book.isCurrentlyReading = isCurrently;
+            book.readDate = readDate;
+            book.type = type;
+            book.publisher = publisher;
+            book.pages = pages;
+        }
 
         database.ref(`user_data/${currentUser}/${currentDetailsId}`).set(userBookData)
             .then(() => {
@@ -786,13 +800,16 @@ document.getElementById('saveDetailsBtn').onclick = () => {
             })
             .catch(error => console.error("Помилка збереження особистих даних:", error));
             
-        // 3. Якщо тип книги, видавництво чи сторінки змінилися — це загальні характеристики книги, 
-        // які мають бачити всі. Оновимо їх у загальній гілці книги (опціонально, для порядку)
         database.ref(`books/${currentDetailsId}`).update({
             type: type,
             publisher: publisher,
             pages: pages
         });
+
+        // Оновлюємо інтерфейс та статистику локально
+        displayBooks();
+        updateStats();
+        updateCurrentlyReadingBanner();
     }
 };
 
