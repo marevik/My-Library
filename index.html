@@ -91,7 +91,8 @@
         <button onclick="shareWishlist()">❤️ Поділитись wishlist</button>
     </div>
 </div>
-         <div style="display: flex; gap: 8px;">
+         <div style="display: flex; align-items: center; gap: 8px;">
+        <button class="history-btn" onclick="switchSection('history')">✅</button>
         <button onclick="switchSection('scanner')" style="background: var(--card-bg); color: white; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer;">📸</button>
         <button id="openModalBtn">📚 Додати</button>
     </div> 
@@ -223,7 +224,7 @@
         </div>
 
     </div>
-
+<!-- <button onclick="migrateWifeData()">🔄 Перенести мої дані</button> -->
 <main id="main-content">
     <section id="home-section" class="app-section">
         <div id="currentlyReadingBanner" style="display:none; margin: 10px 15px; padding: 14px; background: var(--card-bg); border: 1px solid var(--accent-color); border-radius: 14px;">
@@ -239,7 +240,10 @@
         </div>
 
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="Пошук за назвою або автором...">
+                <button id="clearSearchBtn" class="clear-search-btn">✕</button>
+            </div>
         </div>
 
         <div class="controls-container">
@@ -338,6 +342,12 @@
     <h4>📄 Статистика сторінок</h4>
     <ul id="statPages"></ul>
 </div>
+
+<div class="stat-card-full" id="lengthDistCard" style="display:none;">
+    <h4>📏 Розподіл за обсягом</h4>
+    <div id="lengthDist"></div>
+</div>
+
             <div class="stat-card-full list-stat" id="wishlistCard">
     <h4>❤️ Список бажань</h4>
     <ul id="statWishlist"></ul>
@@ -371,6 +381,13 @@
     </div>
     <div class="book-list-container" id="wishlistList"></div>
 </section>
+
+    <section id="history-section" class="app-section" style="display:none;">
+        <div style="padding: 0 15px;">
+            <h2 style="margin-top: 10px;">✅ Прочитані книги</h2>
+        </div>
+        <div id="historyList"></div>
+    </section>
 </main>
 
 <nav class="bottom-nav">
@@ -390,6 +407,9 @@
         <p>Stats</p>
     </button>
 </nav>
+
+<button id="scrollToTopBtn" class="scroll-to-top-btn">↑</button>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="script.js?v=1.2"></script>
