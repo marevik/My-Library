@@ -1,4 +1,6 @@
 let books = [];
+let rawBooks = [];
+let allUsersData = {};
 const storageKey = 'myLibraryBooks';
 
 // State variables
@@ -7,6 +9,7 @@ let currentSearchQuery = '';
 let currentSortOrder = 'date-new';
 let currentPublisher = 'all';
 
+const header = document.querySelector('header');
 const modal = document.getElementById('addBookModal');
 const openModalBtn = document.getElementById('openModalBtn');
 const addBookForm = document.getElementById('addBookForm');
@@ -15,6 +18,8 @@ const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
 const publisherFilter = document.getElementById('publisherFilter');
 const coverPreview = document.getElementById('cover-preview');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const scrollToTopBtn = document.getElementById('scrollToTopBtn');
 
 
 const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM"; 
@@ -42,6 +47,7 @@ if (openModalBtn) {
         addBookForm.onsubmit = onAddSubmit; // Restore original 'add' handler
         updateCoverPreview(''); // Clear preview
         modal.style.display = "flex";
+        updateScrollToTopVisibility();
     };
 }
 
@@ -49,6 +55,7 @@ function closeModal() {
     modal.style.display = "none"; 
     updateCoverPreview(''); // Clear preview on close
     clearSuggestions();
+    updateScrollToTopVisibility();
 }
 
 window.onclick = (event) => {
@@ -61,43 +68,48 @@ window.onclick = (event) => {
     if (event.target === detailsModal) closeDetailsModal(); 
 };
 
-let allBooksRaw = [];
-let userDataRaw = {};
-
-function syncAndDisplay() {
-    // Об'єднуємо: беремо загальну книгу і додаємо до неї особисті статуси
-    books = allBooksRaw.map(book => {
-        const myStats = userDataRaw[book.id] || { 
-            isRead: false, 
-            rating: 0, 
-            isCurrentlyReading: false,
-            readDate: '',
-            inWishlist: false 
-        };
-        return {
-            ...book,
-            isRead: myStats.isRead || false,
-            rating: myStats.rating || 0,
-            isCurrentlyReading: myStats.isCurrentlyReading || false,
-            inWishlist: myStats.inWishlist || false,
-            readDate: myStats.readDate || '',
-            hidden: myStats.hidden || false  
-        };
-    }).filter(b => !b.hidden && b.id && b.title);
-
-    displayBooks();
-    updateCurrentlyReadingBanner();
-    updateStats();
-}
-
 // --- Data & Rendering ---
 function loadBooks() {
-    database.ref('books').on('value', (booksSnapshot) => {
-        allBooksRaw = booksSnapshot.val() ? Object.values(booksSnapshot.val()).sort((a, b) => b.id - a.id) : [];
+    const syncAndDisplay = () => {
+        if (!rawBooks.length) return;
+        
+        const myData = allUsersData[currentUser] || {};
+
+        // Об'єднуємо загальні дані про книги з особистими даними користувача
+        books = rawBooks.map(book => {
+            const stats = myData[book.id] || {};
+            return {
+                id: book.id,
+                title: book.title || 'Без назви',
+                author: book.author || 'Невідомий автор',
+                imageURL: book.imageURL || '',
+                pages: book.pages || null,
+                publisher: book.publisher || '',
+                type: book.type || 'paper',
+                // Особисті дані користувача
+                isRead: stats.isRead || false,
+                rating: stats.rating || 0,
+                isCurrentlyReading: stats.isCurrentlyReading || false,
+                inWishlist: stats.inWishlist || false,
+                readDate: stats.readDate || '',
+                hidden: stats.hidden || false
+            };
+        }).filter(b => !b.hidden && b.id && b.title);
+
+        console.log(`Синхронізовано! Книг: ${books.length}. Користувач: ${currentUser}`);
+        displayBooks();
+        updateCurrentlyReadingBanner();
+        updateStats();
+        renderReadHistory();
+    };
+
+    database.ref('books').on('value', (snapshot) => {
+        rawBooks = snapshot.val() ? Object.values(snapshot.val()) : [];
         syncAndDisplay();
     });
-    database.ref(`user_data/${currentUser}`).on('value', (userSnapshot) => {
-        userDataRaw = userSnapshot.val() || {};
+
+    database.ref('user_data').on('value', (snapshot) => {
+        allUsersData = snapshot.val() || {};
         syncAndDisplay();
     });
 }
@@ -106,10 +118,11 @@ function saveBooks() {
     // Замість database.ref('books').set(books) — зберігаємо кожну книгу окремо
     const booksObj = {};
     books.forEach(book => {
-        booksObj[book.id] = book;
+        const { id, title, author, imageURL, pages, publisher, type } = book;
+        // Важливо: зберігаємо ТІЛЬКИ метадані, щоб не затерти чужі оцінки своїми
+        booksObj[id] = { id, title, author, imageURL, pages, publisher, type };
     });
     database.ref('books').set(booksObj)
-        .then(() => console.log("Збережено!"))
         .catch(error => console.error("Помилка:", error));
 }
 
@@ -171,6 +184,47 @@ function displayBooks() {
     renderWishlist();
 }
 
+function renderReadHistory() {
+    const container = document.getElementById('historyList');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Відображаємо блок лише для поточного користувача (того, хто зайшов у додаток)
+    const myData = allUsersData[currentUser] || {};
+    const myReadIds = Object.keys(myData).filter(id => myData[id] && myData[id].isRead);
+
+    if (myReadIds.length === 0) {
+        container.innerHTML = '<p class="empty-message" style="padding: 20px; text-align: center; color: var(--text-muted);">Ви ще не позначили жодну книгу як прочитану 📚</p>';
+        return;
+    }
+
+    // Викликаємо рендеринг секції лише для себе
+    renderUserHistorySection("Мої прочитані книги", myReadIds, myData, container);
+}
+
+function renderUserHistorySection(title, ids, userData, container) {
+    if (ids.length === 0) return;
+
+    const sectionHeader = document.createElement('div');
+    sectionHeader.className = 'history-user-header';
+    sectionHeader.innerHTML = `<h3>👤 ${title} <small>(${ids.length} кн.)</small></h3>`;
+    container.appendChild(sectionHeader);
+
+    const grid = document.createElement('div');
+    grid.className = 'book-list-container history-grid';
+    
+    // Сортуємо книги від нових до старих
+    const sortedIds = [...ids].sort((a, b) => b - a);
+
+    sortedIds.forEach(id => {
+        const bookMeta = rawBooks.find(b => b.id == id);
+        if (bookMeta) {
+            createBookCard({ ...bookMeta, isRead: true, rating: userData[id].rating || 0 }, grid);
+        }
+    });
+    container.appendChild(grid);
+}
+
 
 function renderWishlist() {  
     const container = document.getElementById('wishlistList');
@@ -199,11 +253,14 @@ if (coverUrl.startsWith('http://')) {
     const ratingStars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
 
     card.innerHTML = `
-        <img src="${coverUrl}" alt="${book.title}" onerror="this.src='https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=200&auto=format&fit=crop'">
+        <div style="position: relative;">
+            ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
+            <img src="${coverUrl}" alt="${book.title}" onerror="this.src='https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=200&auto=format&fit=crop'">
+        </div>
         <div class="book-info">
             <h3>${book.title}</h3>
             <p>${book.author}</p>
-            <div class="stars">${ratingStars}</div>
+            <div class="rating-display">${ratingStars}</div>
         </div>
     `;
 
@@ -288,7 +345,22 @@ if (addBookForm) addBookForm.onsubmit = onAddSubmit;
 if (searchInput) {
     searchInput.oninput = function() {
         currentSearchQuery = this.value;
+        if (clearSearchBtn) {
+            clearSearchBtn.style.display = this.value ? 'flex' : 'none';
+        }
         displayBooks();
+    };
+}
+
+if (clearSearchBtn) {
+    clearSearchBtn.onclick = function() {
+        if (searchInput) {
+            searchInput.value = '';
+            currentSearchQuery = '';
+            this.style.display = 'none';
+            searchInput.focus();
+            displayBooks();
+        }
     };
 }
 
@@ -376,24 +448,22 @@ function openEditModal(id) {
     
     addBookForm.onsubmit = (e) => {
         e.preventDefault();
-        const index = books.findIndex(b => b.id === id);
-        if (index !== -1) {
-            books[index].title = document.getElementById('title').value;
-            books[index].author = document.getElementById('author').value;
-            books[index].imageURL = document.getElementById('imageURL').value;
-            books[index].pages = parseInt(document.getElementById('pages').value) || null;
-            books[index].publisher = document.getElementById('publisher').value;
-            saveBooks();
-            displayBooks();
-            closeModal();
-        }
+        const updatedBook = {
+            title: document.getElementById('title').value,
+            author: document.getElementById('author').value,
+            imageURL: document.getElementById('imageURL').value,
+            pages: parseInt(document.getElementById('pages').value) || null,
+            publisher: document.getElementById('publisher').value
+        };
+        database.ref(`books/${id}`).update(updatedBook).then(() => closeModal());
     };
     
     modal.style.display = "flex";
 }
 
 window.openDetailsModal = (id) => {
-    const book = books.find(b => b.id === id);
+    // Шукаємо спочатку в books, потім у rawBooks (якщо книга прихована для поточного користувача)
+    const book = books.find(b => b.id === id) || rawBooks.find(b => b.id === id);
     if (!book) return;
 
     currentDetailsId = id;
@@ -409,6 +479,7 @@ window.openDetailsModal = (id) => {
     document.getElementById('detailsPages').value = book.pages || '';
     document.getElementById('detailsCurrentlyReading').checked = book.isCurrentlyReading || false;
     document.getElementById('detailsModal').style.display = "flex";
+    updateScrollToTopVisibility();
     
     const readDateContainer = document.getElementById('readDateContainer');
     const readDate = book.readDate || '';
@@ -420,6 +491,7 @@ window.openDetailsModal = (id) => {
 
 function closeDetailsModal() {
     document.getElementById('detailsModal').style.display = "none";
+    updateScrollToTopVisibility();
 }
 
 document.querySelectorAll('.star').forEach(star => {
@@ -514,17 +586,22 @@ function switchSection(sectionId) {
     } else if (sectionId === 'wishlist') {
         document.getElementById('wishlist-section').style.display = 'block';
         currentFilterType = 'wishlist'; // Вказуємо, що ми у списку бажань
+    } else if (sectionId === 'history') {
+        document.getElementById('history-section').style.display = 'block';
+        renderReadHistory();
     } else if (sectionId === 'stats') {
         document.getElementById('stats-section').style.display = 'block';
         updateStats();
     }
     
-    // Активуємо кнопку в меню
-    const activeBtn = document.querySelector(`button[onclick="switchSection('${sectionId}')"]`);
-    if (activeBtn) activeBtn.classList.add('active');
+    // Активуємо всі відповідні кнопки (наприклад, і в хедері, і в нижній панелі)
+    document.querySelectorAll(`button[onclick="switchSection('${sectionId}')"]`).forEach(btn => {
+        btn.classList.add('active');
+    });
     
     // Перерендерюємо книги під нову секцію
     displayBooks();
+    updateScrollToTopVisibility();
 }
 window.switchSection = switchSection;
 
@@ -678,6 +755,33 @@ function updateStats() {
         if (card) card.style.display = 'block';
     }
 
+    // Розподіл за довжиною книг
+    const lengthDistContainer = document.getElementById('lengthDist');
+    if (lengthDistContainer) {
+        const lengthGroups = [
+            { label: '📗 Короткі (<200 стор.)', count: readBooks.filter(b => b.pages > 0 && b.pages < 200).length, color: '#32d74b' },
+            { label: '📘 Середні (200-500 стор.)', count: readBooks.filter(b => b.pages >= 200 && b.pages <= 500).length, color: '#5e5ce6' },
+            { label: '📕 Товсті (>500 стор.)', count: readBooks.filter(b => b.pages > 500).length, color: '#ff453a' }
+        ];
+
+        const totalWithPages = lengthGroups.reduce((sum, g) => sum + g.count, 0);
+        
+        lengthDistContainer.innerHTML = lengthGroups.map(group => {
+            const width = totalWithPages > 0 ? Math.round((group.count / totalWithPages) * 100) : 0;
+            return `
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
+                        <span>${group.label}</span>
+                        <span style="color:var(--text-muted);">${group.count} кн.</span>
+                    </div>
+                    <div style="background:var(--border-color); border-radius:4px; height:8px; overflow:hidden;">
+                        <div style="width:${width}%; height:100%; background:${group.color}; border-radius:4px;"></div>
+                    </div>
+                </div>`;
+        }).join('');
+        document.getElementById('lengthDistCard').style.display = totalWithPages > 0 ? 'block' : 'none';
+    }
+
     // Деталі по типах
     const typeCounts = actualBooks.reduce((acc, book) => {
         const t = book.type || 'paper';
@@ -747,14 +851,13 @@ function updateStats() {
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
+    // const index = books.find(b => b.id === currentDetailsId); 
     if (currentDetailsId) {
-        const book = books.find(b => b.id === currentDetailsId);
         const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
         const isRead = document.getElementById('detailsReadStatus').checked;
         const type = document.getElementById('detailsBookType').value;
         const publisher = document.getElementById('detailsPublisher').value;
-        const pagesValue = document.getElementById('detailsPages').value;
-        const pages = pagesValue ? parseInt(pagesValue) : null;
+        const pages = parseInt(document.getElementById('detailsPages').value) || null;
         const readDate = document.getElementById('detailsReadDate').value;
 
         // 1. Якщо цей пристрій вмикає "Зараз читаю", спочатку скидаємо цей статус 
@@ -779,19 +882,8 @@ document.getElementById('saveDetailsBtn').onclick = () => {
             rating: tempRating,
             isCurrentlyReading: isCurrently,
             readDate: readDate,
-            inWishlist: book ? (book.inWishlist || false) : false
+            inWishlist: books.find(b => b.id === currentDetailsId)?.inWishlist || false
         };
-
-        // Оновлюємо локальний масив книг для миттєвого відображення
-        if (book) {
-            book.isRead = isRead;
-            book.rating = tempRating;
-            book.isCurrentlyReading = isCurrently;
-            book.readDate = readDate;
-            book.type = type;
-            book.publisher = publisher;
-            book.pages = pages;
-        }
 
         database.ref(`user_data/${currentUser}/${currentDetailsId}`).set(userBookData)
             .then(() => {
@@ -800,16 +892,13 @@ document.getElementById('saveDetailsBtn').onclick = () => {
             })
             .catch(error => console.error("Помилка збереження особистих даних:", error));
             
+        // 3. Якщо тип книги, видавництво чи сторінки змінилися — це загальні характеристики книги, 
+        // які мають бачити всі. Оновимо їх у загальній гілці книги (опціонально, для порядку)
         database.ref(`books/${currentDetailsId}`).update({
             type: type,
             publisher: publisher,
             pages: pages
         });
-
-        // Оновлюємо інтерфейс та статистику локально
-        displayBooks();
-        updateStats();
-        updateCurrentlyReadingBanner();
     }
 };
 
@@ -1002,18 +1091,25 @@ function updateYearGoal() {
     return parseInt(b.readDate.split('-')[0]) === currentYear;
 }).length;
     const percent = goal > 0 ? Math.min(Math.round((count / goal) * 100), 100) : 0;
+    
+    // Розрахунок темпу
+    const month = new Date().getMonth() + 1;
+    const expected = (goal / 12) * month;
+    const isOnTrack = count >= expected;
+    const paceText = isOnTrack ? "Ви йдете за графіком! 🎉" : `Потрібно наздогнати: ще ${Math.ceil(expected - count)} кн.`;
 
     const goalProgressEl = document.getElementById('yearGoalProgress');
     if (!goalProgressEl) return;
 
     goalProgressEl.innerHTML = goal > 0 ? `
         <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-            <span>Прочитано цього року: <strong>${count}</strong> з <strong>${goal}</strong></span>
+            <span>Прочитано: <strong>${count}</strong> з <strong>${goal}</strong></span>
             <span>${percent}%</span>
         </div>
         <div style="background: var(--border-color); border-radius: 8px; overflow: hidden; height: 14px;">
             <div style="width:${percent}%; height:100%; background:var(--accent-color);"></div>
         </div>
+        <p style="font-size: 0.75rem; color: ${isOnTrack ? 'var(--success)' : 'var(--danger)'}; margin: 8px 0 0;">${paceText}</p>
     ` : '<p style="color:var(--text-muted); font-size:0.85rem; margin:0;">Встановіть ціль, щоб відстежувати прогрес</p>';
 }
 
@@ -1048,6 +1144,53 @@ function toggleReadDate(isChecked) {
 }
 window.toggleReadDate = toggleReadDate; // Робимо функцію глобальною для HTML
 
+// --- Scroll to Top Button Logic ---
+let lastScrollY = window.scrollY;
+function updateScrollToTopVisibility() {
+    if (!scrollToTopBtn) return;
+    
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const detailsModal = document.getElementById('detailsModal');
+    
+    // Перевірка, чи відкрите будь-яке модальне вікно
+    const isModalOpen = (modal && modal.style.display === 'flex') || 
+                        (detailsModal && detailsModal.style.display === 'flex');
+                        
+    // Перевірка, чи фокус зараз на полі вводу (клавіатура відкрита)
+    const isInputFocused = document.activeElement && 
+                           ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
+
+    // Логіка для хедера (ховаємо при скролі вниз, показуємо при скролі вгору)
+    if (header && !isModalOpen) {
+        if (scrollY > lastScrollY && scrollY > 100) {
+            // Скролимо вниз
+            header.classList.add('header-hidden');
+        } else {
+            // Скролимо вгору
+            header.classList.remove('header-hidden');
+        }
+    }
+
+    if (scrollY > 400 && !isModalOpen && !isInputFocused) {
+        scrollToTopBtn.classList.add('show');
+    } else {
+        scrollToTopBtn.classList.remove('show');
+    }
+
+    lastScrollY = scrollY;
+}
+
+window.addEventListener('scroll', updateScrollToTopVisibility);
+
+// Приховуємо кнопку, коли користувач починає друкувати
+document.addEventListener('focusin', updateScrollToTopVisibility);
+document.addEventListener('focusout', () => setTimeout(updateScrollToTopVisibility, 100));
+
+if (scrollToTopBtn) {
+    scrollToTopBtn.onclick = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+}
 
 // Перевіряємо, чи є вже збережене ім'я користувача на цьому телефоні
 let currentUser = localStorage.getItem('library_user_id');
