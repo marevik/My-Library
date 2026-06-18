@@ -2,6 +2,9 @@ let books = [];
 let rawBooks = [];
 let allUsersData = {};
 const storageKey = 'myLibraryBooks';
+const allowedEditorEmails = ['igopko1996@gmail.com', 'marialys1995@gmail.com'];
+let currentAuthUser = null;
+let canEditLibrary = false;
 
 // State variables
 let currentFilterType = 'all';
@@ -20,6 +23,7 @@ const publisherFilter = document.getElementById('publisherFilter');
 const coverPreview = document.getElementById('cover-preview');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+const authBtn = document.getElementById('authBtn');
 
 
 const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM"; 
@@ -33,6 +37,67 @@ const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM";
     appId: "1:80873347860:web:4938c700943b5cb6c60001"
   };
 
+function isAllowedEditor(user) {
+    return !!user && allowedEditorEmails.includes((user.email || '').toLowerCase());
+}
+
+function requireEditor(actionName = 'змінювати бібліотеку') {
+    if (canEditLibrary) return true;
+    alert(`Увійдіть через дозволений Google-акаунт, щоб ${actionName}.`);
+    return false;
+}
+
+function setEditingEnabled(enabled) {
+    canEditLibrary = enabled;
+
+    if (openModalBtn) {
+        openModalBtn.disabled = !enabled;
+        openModalBtn.style.opacity = enabled ? '1' : '0.45';
+        openModalBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        openModalBtn.title = enabled ? '' : 'Увійдіть через Google, щоб додавати книги';
+    }
+
+    const importButton = document.querySelector('button[onclick="document.getElementById(\'importFile\').click()"]');
+    if (importButton) {
+        importButton.disabled = !enabled;
+        importButton.style.opacity = enabled ? '1' : '0.45';
+        importButton.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        importButton.title = enabled ? '' : 'Увійдіть через Google, щоб імпортувати';
+    }
+}
+
+function updateAuthUI() {
+    if (!authBtn) return;
+
+    if (currentAuthUser) {
+        authBtn.textContent = canEditLibrary ? 'Admin' : 'Read only';
+        authBtn.title = currentAuthUser.email || '';
+        authBtn.style.borderColor = canEditLibrary ? 'var(--success)' : 'var(--danger)';
+    } else {
+        authBtn.textContent = 'Login';
+        authBtn.title = 'Увійти через Google';
+        authBtn.style.borderColor = 'var(--border-color)';
+    }
+}
+
+window.toggleAuth = () => {
+    if (!firebase.auth) {
+        alert('Firebase Auth не завантажився. Перевірте підключення firebase-auth.js.');
+        return;
+    }
+
+    if (currentAuthUser) {
+        firebase.auth().signOut();
+        return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebase.auth().signInWithPopup(provider).catch(error => {
+        console.error('Google sign-in failed:', error);
+        alert('Не вдалося увійти через Google: ' + error.message);
+    });
+};
+
 
 // --- Window Management ---
 function toggleDropdown(event) {
@@ -42,6 +107,7 @@ function toggleDropdown(event) {
 
 if (openModalBtn) {
     openModalBtn.onclick = () => {
+        if (!requireEditor('додавати книги')) return;
         addBookForm.reset();
         document.querySelector('#addBookModal h2').textContent = 'Додати книгу';
         addBookForm.onsubmit = onAddSubmit; // Restore original 'add' handler
@@ -115,6 +181,8 @@ function loadBooks() {
 }
 
 function saveBooks() {
+    if (!requireEditor('імпортувати книги')) return;
+
     // Замість database.ref('books').set(books) — зберігаємо кожну книгу окремо
     const booksObj = {};
     books.forEach(book => {
@@ -302,6 +370,8 @@ function renderBooks(arr) {
 // --- Actions & Event Listeners ---
 const onAddSubmit = (e) => {
     e.preventDefault();
+    if (!requireEditor('додавати книги')) return;
+
     const titleVal = document.getElementById('title').value.trim();
     const authorVal = document.getElementById('author').value.trim();
 
@@ -396,6 +466,11 @@ window.exportBooks = () => {
 };
 
 window.importBooks = (e) => {
+    if (!requireEditor('імпортувати книги')) {
+        e.target.value = '';
+        return;
+    }
+
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -434,6 +509,8 @@ function updateCoverPreview(url) {
 }
 
 function openEditModal(id) {
+    if (!requireEditor('редагувати книги')) return;
+
     const book = books.find(x => x.id === id);
     if (!book) return;
 
@@ -851,6 +928,8 @@ function updateStats() {
 }
 
 document.getElementById('saveDetailsBtn').onclick = () => {
+    if (!requireEditor('зберігати зміни')) return;
+
     // const index = books.find(b => b.id === currentDetailsId); 
     if (currentDetailsId) {
         const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
@@ -903,6 +982,8 @@ document.getElementById('saveDetailsBtn').onclick = () => {
 };
 
 document.getElementById('deleteInDetailsBtn').onclick = function() {
+    if (!requireEditor('видаляти книги')) return;
+
     if (!currentDetailsId) return;
     
     const book = books.find(b => b.id === currentDetailsId);
@@ -925,6 +1006,8 @@ document.getElementById('deleteInDetailsBtn').onclick = function() {
 };
 
 document.getElementById('goToEditBtn').onclick = function() {
+    if (!requireEditor('редагувати книги')) return;
+
     if (currentDetailsId) {
         const bookId = currentDetailsId;
         closeDetailsModal();
@@ -933,6 +1016,8 @@ document.getElementById('goToEditBtn').onclick = function() {
 };
 
 document.getElementById('wishlistToggleBtn').onclick = function() {
+    if (!requireEditor('змінювати список бажань')) return;
+
     const book = books.find(b => b.id === currentDetailsId);
     if (book) {
         const newWishlistStatus = !book.inWishlist;
@@ -985,6 +1070,20 @@ if (titleInput) {
   // Ініціалізація додатку
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
+const auth = firebase.auth();
+
+auth.onAuthStateChanged(user => {
+    currentAuthUser = user;
+    setEditingEnabled(isAllowedEditor(user));
+    updateAuthUI();
+
+    if (user && !canEditLibrary) {
+        console.warn(`Signed in email is not allowed to edit this library: ${user.email}`);
+    }
+});
+
+setEditingEnabled(false);
+updateAuthUI();
 
 function fetchAutocompleteSuggestions() {
     const query = titleInput.value.trim();

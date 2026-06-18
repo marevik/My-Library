@@ -94,6 +94,7 @@
          <div style="display: flex; align-items: center; gap: 8px;">
         <button class="history-btn" onclick="switchSection('history')">✅</button>
         <button onclick="switchSection('scanner')" style="background: var(--card-bg); color: white; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 1rem; cursor: pointer;">📸</button>
+        <button id="authBtn" type="button" onclick="toggleAuth()" style="background: var(--card-bg); color: white; border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; cursor: pointer;">Login</button>
         <button id="openModalBtn">📚 Додати</button>
     </div> 
     </header>
@@ -412,6 +413,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="script.js?v=1.2"></script>
 </body>
 </html>
