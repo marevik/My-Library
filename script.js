@@ -80,9 +80,10 @@ function updateAuthUI() {
     }
 }
 
+// СТАЛО:
 window.toggleAuth = () => {
     if (!firebase.auth) {
-        alert('Firebase Auth не завантажився. Перевірте підключення firebase-auth.js.');
+        alert('❌ firebase.auth не завантажився');
         return;
     }
 
@@ -92,17 +93,21 @@ window.toggleAuth = () => {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    alert('📱 isMobile: ' + isMobile + '\nUserAgent: ' + navigator.userAgent.substring(0, 80));
     
-    // Спочатку пробуємо popup, якщо не вийде — redirect
-   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-if (isMobile) {
-    firebase.auth().signInWithRedirect(provider);
-} else {
-    firebase.auth().signInWithPopup(provider).catch(error => {
-        console.error('Google sign-in failed:', error);
-        alert('Не вдалося увійти через Google: ' + error.message);
-    });
-}
+    if (isMobile) {
+        alert('➡️ Запускаємо signInWithRedirect...');
+        firebase.auth().signInWithRedirect(provider).then(() => {
+            alert('✅ signInWithRedirect запущено');
+        }).catch(error => {
+            alert('❌ signInWithRedirect помилка:\n' + error.code + '\n' + error.message);
+        });
+    } else {
+        firebase.auth().signInWithPopup(provider).catch(error => {
+            alert('❌ Popup помилка:\n' + error.code + '\n' + error.message);
+        });
+    }
 };
 
 
