@@ -94,17 +94,15 @@ window.toggleAuth = () => {
     const provider = new firebase.auth.GoogleAuthProvider();
     
     // Спочатку пробуємо popup, якщо не вийде — redirect
+   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+if (isMobile) {
+    firebase.auth().signInWithRedirect(provider);
+} else {
     firebase.auth().signInWithPopup(provider).catch(error => {
-        if (error.code === 'auth/popup-blocked' || 
-            error.code === 'auth/popup-closed-by-user' ||
-            error.code === 'auth/cancelled-popup-request') {
-            // Fallback на redirect для мобільних
-            firebase.auth().signInWithRedirect(provider);
-        } else {
-            console.error('Google sign-in failed:', error);
-            alert('Не вдалося увійти через Google: ' + error.message);
-        }
+        console.error('Google sign-in failed:', error);
+        alert('Не вдалося увійти через Google: ' + error.message);
     });
+}
 };
 
 
