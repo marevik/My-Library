@@ -1078,11 +1078,14 @@ if (titleInput) {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const auth = firebase.auth();
-auth.getRedirectResult().catch(error => {
-    if (error.code !== 'auth/no-auth-event') {
-        console.error('Redirect sign-in error:', error);
-        alert('Помилка входу: ' + error.message);
+auth.getRedirectResult().then(result => {
+    if (result && result.user) {
+        alert('✅ Redirect успішний: ' + result.user.email);
+    } else {
+        alert('ℹ️ getRedirectResult: user = null (можливо, не було редіректу)');
     }
+}).catch(error => {
+    alert('❌ getRedirectResult помилка:\ncode: ' + error.code + '\n' + error.message);
 });
 
 auth.onAuthStateChanged(user => {
