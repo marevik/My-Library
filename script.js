@@ -80,6 +80,7 @@ function updateAuthUI() {
     }
 }
 
+// СТАЛО:
 window.toggleAuth = () => {
     if (!firebase.auth) {
         alert('Firebase Auth не завантажився. Перевірте підключення firebase-auth.js.');
@@ -92,10 +93,7 @@ window.toggleAuth = () => {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithPopup(provider).catch(error => {
-        console.error('Google sign-in failed:', error);
-        alert('Не вдалося увійти через Google: ' + error.message);
-    });
+    firebase.auth().signInWithRedirect(provider);
 };
 
 
@@ -1071,6 +1069,12 @@ if (titleInput) {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const auth = firebase.auth();
+auth.getRedirectResult().catch(error => {
+    if (error.code !== 'auth/no-auth-event') {
+        console.error('Redirect sign-in error:', error);
+        alert('Помилка входу: ' + error.message);
+    }
+});
 
 auth.onAuthStateChanged(user => {
     currentAuthUser = user;
