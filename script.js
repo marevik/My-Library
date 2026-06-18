@@ -80,36 +80,11 @@ function updateAuthUI() {
     }
 }
 
-// СТАЛО:
-window.toggleAuth = () => {
-    if (!firebase.auth) {
-        alert('❌ firebase.auth не завантажився');
-        return;
+auth.getRedirectResult().catch(error => {
+    if (error.code && error.code !== 'auth/no-auth-event') {
+        console.error('Redirect error:', error);
     }
-
-    if (currentAuthUser) {
-        firebase.auth().signOut();
-        return;
-    }
-
-    const provider = new firebase.auth.GoogleAuthProvider();
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    alert('📱 isMobile: ' + isMobile + '\nUserAgent: ' + navigator.userAgent.substring(0, 80));
-    
-    if (isMobile) {
-        alert('➡️ Запускаємо signInWithRedirect...');
-        firebase.auth().signInWithRedirect(provider).then(() => {
-            alert('✅ signInWithRedirect запущено');
-        }).catch(error => {
-            alert('❌ signInWithRedirect помилка:\n' + error.code + '\n' + error.message);
-        });
-    } else {
-        firebase.auth().signInWithPopup(provider).catch(error => {
-            alert('❌ Popup помилка:\n' + error.code + '\n' + error.message);
-        });
-    }
-};
-
+});
 
 // --- Window Management ---
 function toggleDropdown(event) {
