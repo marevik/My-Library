@@ -80,7 +80,6 @@ function updateAuthUI() {
     }
 }
 
-// СТАЛО:
 window.toggleAuth = () => {
     if (!firebase.auth) {
         alert('Firebase Auth не завантажився. Перевірте підключення firebase-auth.js.');
@@ -93,7 +92,19 @@ window.toggleAuth = () => {
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebase.auth().signInWithRedirect(provider);
+    
+    // Спочатку пробуємо popup, якщо не вийде — redirect
+    firebase.auth().signInWithPopup(provider).catch(error => {
+        if (error.code === 'auth/popup-blocked' || 
+            error.code === 'auth/popup-closed-by-user' ||
+            error.code === 'auth/cancelled-popup-request') {
+            // Fallback на redirect для мобільних
+            firebase.auth().signInWithRedirect(provider);
+        } else {
+            console.error('Google sign-in failed:', error);
+            alert('Не вдалося увійти через Google: ' + error.message);
+        }
+    });
 };
 
 
