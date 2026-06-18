@@ -80,11 +80,7 @@ function updateAuthUI() {
     }
 }
 
-auth.getRedirectResult().catch(error => {
-    if (error.code && error.code !== 'auth/no-auth-event') {
-        console.error('Redirect error:', error);
-    }
-});
+
 
 // --- Window Management ---
 function toggleDropdown(event) {
@@ -1058,15 +1054,30 @@ if (titleInput) {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 const auth = firebase.auth();
-auth.getRedirectResult().then(result => {
-    if (result && result.user) {
-        alert('✅ Redirect успішний: ' + result.user.email);
-    } else {
-        alert('ℹ️ getRedirectResult: user = null (можливо, не було редіректу)');
+auth.getRedirectResult().catch(error => {
+    if (error.code && error.code !== 'auth/no-auth-event') {
+        console.error('Redirect error:', error);
     }
-}).catch(error => {
-    alert('❌ getRedirectResult помилка:\ncode: ' + error.code + '\n' + error.message);
 });
+
+// ДОДАТИ після getRedirectResult блоку:
+window.toggleAuth = () => {
+    if (currentAuthUser) {
+        auth.signOut();
+        return;
+    }
+
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    auth.signInWithPopup(provider).catch(error => {
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+            auth.signInWithRedirect(provider);
+        } else {
+            alert('❌ Помилка входу:\n' + error.code + '\n' + error.message);
+        }
+    });
+};
 
 auth.onAuthStateChanged(user => {
     currentAuthUser = user;
