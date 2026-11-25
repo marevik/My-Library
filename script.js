@@ -1,1582 +1,1718 @@
-let books = [];
-let rawBooks = [];
-let allUsersData = {};
-const storageKey = 'myLibraryBooks';
-const allowedEditorEmails = ['igopko1996@gmail.com', 'marialys1995@gmail.com'];
-let currentAuthUser = null;
-let canEditLibrary = false;
-
-// State variables
-let currentFilterType = 'all';
-let currentSearchQuery = '';
-let currentSortOrder = 'date-new';
-let currentPublisher = 'all';
-
-const header = document.querySelector('header');
-const modal = document.getElementById('addBookModal');
-const openModalBtn = document.getElementById('openModalBtn');
-const addBookForm = document.getElementById('addBookForm');
-const bookList = document.getElementById('bookList');
-const searchInput = document.getElementById('searchInput');
-const sortSelect = document.getElementById('sortSelect');
-const publisherFilter = document.getElementById('publisherFilter');
-const coverPreview = document.getElementById('cover-preview');
-const clearSearchBtn = document.getElementById('clearSearchBtn');
-const scrollToTopBtn = document.getElementById('scrollToTopBtn');
-const authBtn = document.getElementById('authBtn');
-
-
-const googleBooksApiKey = "AIzaSyDpRIgEIg1n0OktGpHI0kNZV-2jHv8pFtM"; 
- const firebaseConfig = {
-    apiKey: "AIzaSyD5NeqCcQ0A7OpIxfv07zBpp9GFLKWtrxE",
-    authDomain: "mylibrary-pwa.firebaseapp.com",
-    databaseURL: "https://mylibrary-pwa-default-rtdb.firebaseio.com",
-    projectId: "mylibrary-pwa",
-    storageBucket: "mylibrary-pwa.firebasestorage.app",
-    messagingSenderId: "80873347860",
-    appId: "1:80873347860:web:4938c700943b5cb6c60001"
-  };
-
-function isAllowedEditor(user) {
-    return !!user && allowedEditorEmails.includes((user.email || '').toLowerCase());
+:root {
+    color-scheme: dark;
+    --bg-color: #000000;
+    --card-bg: #1c1c1e;
+    --card-bg-elevated: #2c2c2e;
+    --header-bg: rgba(12, 12, 14, 0.78);
+    --accent-color: #5e5ce6; /* Apple Indigo */
+    --accent-soft: rgba(94, 92, 230, 0.16);
+    --text-main: #ffffff;
+    --text-muted: #8e8e93;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --danger: #ff453a;
+    --success: #32d74b;
 }
 
-function requireEditor(actionName = 'змінювати бібліотеку') {
-    if (canEditLibrary) return true;
-    alert(`Увійдіть через дозволений Google-акаунт, щоб ${actionName}.`);
-    return false;
+*, *::before, *::after {
+    box-sizing: border-box;
 }
 
-function setEditingEnabled(enabled) {
-    canEditLibrary = enabled;
-
-    if (openModalBtn) {
-        openModalBtn.disabled = !enabled;
-        openModalBtn.style.opacity = enabled ? '1' : '0.45';
-        openModalBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-        openModalBtn.title = enabled ? '' : 'Увійдіть через Google, щоб додавати книги';
-    }
-
-    const importButton = document.querySelector('button[onclick="document.getElementById(\'importFile\').click()"]');
-    if (importButton) {
-        importButton.disabled = !enabled;
-        importButton.style.opacity = enabled ? '1' : '0.45';
-        importButton.style.cursor = enabled ? 'pointer' : 'not-allowed';
-        importButton.title = enabled ? '' : 'Увійдіть через Google, щоб імпортувати';
-    }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
 }
 
-function updateAuthUI() {
-    if (!authBtn) return;
-
-    if (currentAuthUser) {
-        authBtn.textContent = canEditLibrary ? 'Admin' : 'Read only';
-        authBtn.title = currentAuthUser.email || '';
-        authBtn.style.borderColor = canEditLibrary ? 'var(--success)' : 'var(--danger)';
-    } else {
-        authBtn.textContent = 'Login';
-        authBtn.title = 'Увійти через Google';
-        authBtn.style.borderColor = 'var(--border-color)';
-    }
+main {
+    max-width: 1100px;
+    margin: 0 auto;
 }
 
-
-
-// --- Window Management ---
-function toggleDropdown(event) {
-    event.stopPropagation();
-    document.getElementById('backupDropdown').classList.toggle('show');
+button, input, select {
+    font-family: inherit;
 }
 
-if (openModalBtn) {
-    openModalBtn.onclick = () => {
-        if (!requireEditor('додавати книги')) return;
-        addBookForm.reset();
-        document.querySelector('#addBookModal h2').textContent = 'Додати книгу';
-        addBookForm.onsubmit = onAddSubmit; // Restore original 'add' handler
-        updateCoverPreview(''); // Clear preview
-        modal.style.display = "flex";
-        updateScrollToTopVisibility();
-    };
+button:active {
+    transform: scale(0.96);
 }
 
-function closeModal() { 
-    modal.style.display = "none"; 
-    updateCoverPreview(''); // Clear preview on close
-    clearSuggestions();
-    updateScrollToTopVisibility();
+/* --- Header --- */
+header {
+    background-color: var(--header-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 0.5px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    transition: transform 0.35s ease;
 }
 
-window.onclick = (event) => {
-    if (!event.target.closest('.title-wrapper')) {
-        const d = document.getElementById('backupDropdown');
-        if (d) d.classList.remove('show');
-    }
-    if (event.target === modal) closeModal();
-    const detailsModal = document.getElementById('detailsModal');
-    if (event.target === detailsModal) closeDetailsModal(); 
-};
-
-// --- Data & Rendering ---
-function loadBooks() {
-    const syncAndDisplay = () => {
-        if (!rawBooks.length) return;
-        
-        const myData = allUsersData[currentUser] || {};
-
-        // Об'єднуємо загальні дані про книги з особистими даними користувача
-        books = rawBooks.map(book => {
-            const stats = myData[book.id] || {};
-            return {
-                id: book.id,
-                title: book.title || 'Без назви',
-                author: book.author || 'Невідомий автор',
-                imageURL: book.imageURL || '',
-                pages: book.pages || null,
-                publisher: book.publisher || '',
-                type: book.type || 'paper',
-                // Особисті дані користувача
-                isRead: stats.isRead || false,
-                rating: stats.rating || 0,
-                isCurrentlyReading: stats.isCurrentlyReading || false,
-                inWishlist: stats.inWishlist || false,
-                readDate: stats.readDate || '',
-                hidden: stats.hidden || false
-            };
-        }).filter(b => !b.hidden && b.id && b.title);
-
-        console.log(`Синхронізовано! Книг: ${books.length}. Користувач: ${currentUser}`);
-        displayBooks();
-        updateCurrentlyReadingBanner();
-        updateStats();
-        renderReadHistory();
-    };
-
-    database.ref('books').on('value', (snapshot) => {
-        rawBooks = snapshot.val() ? Object.values(snapshot.val()) : [];
-        syncAndDisplay();
-    });
-
-    database.ref('user_data').on('value', (snapshot) => {
-        allUsersData = snapshot.val() || {};
-        syncAndDisplay();
-    });
+.header-hidden {
+    transform: translateY(-100%);
 }
 
-function saveBooks() {
-    if (!requireEditor('імпортувати книги')) return;
-
-    // Замість database.ref('books').set(books) — зберігаємо кожну книгу окремо
-    const booksObj = {};
-    books.forEach(book => {
-        const { id, title, author, imageURL, pages, publisher, type } = book;
-        // Важливо: зберігаємо ТІЛЬКИ метадані, щоб не затерти чужі оцінки своїми
-        booksObj[id] = { id, title, author, imageURL, pages, publisher, type };
-    });
-    database.ref('books').set(booksObj)
-        .catch(error => console.error("Помилка:", error));
+.title-wrapper {
+    position: relative;
+    cursor: pointer;
+    min-width: 0;
 }
 
-function displayBooks() {
-    let booksToDisplay = [...books].filter(b => !b.inWishlist);
-
-    // Фільтр по типу
-    if (currentFilterType === 'reading') {
-        booksToDisplay = booksToDisplay.filter(b => b.isCurrentlyReading);
-    } else if (currentFilterType === 'read') {
-        booksToDisplay = booksToDisplay.filter(b => b.isRead);
-    } else if (currentFilterType !== 'all') {
-        booksToDisplay = booksToDisplay.filter(b => (b.type || 'paper') === currentFilterType);
-    }
-
-    // Пошук
-    if (currentSearchQuery) {
-        const query = currentSearchQuery.toLowerCase();
-        booksToDisplay = booksToDisplay.filter(b => 
-    (b.title || '').toLowerCase().includes(query) || 
-    (b.author || '').toLowerCase().includes(query)
-);
-    }
-
-    // Фільтр по видавництву
-    if (currentPublisher !== 'all') {
-        booksToDisplay = booksToDisplay.filter(b => (b.publisher || '') === currentPublisher);
-    }
-
-    // Сортування
-    switch (currentSortOrder) {
-        case 'title-asc':
-    booksToDisplay.sort((a, b) => (a.title || '').localeCompare(b.title || '')); break;
-        case 'title-desc':
-    booksToDisplay.sort((a, b) => (b.title || '').localeCompare(a.title || '')); break;
-        case 'publisher-asc':
-            booksToDisplay.sort((a, b) => (a.publisher || '').localeCompare(b.publisher || '')); break;
-        case 'publisher-desc':
-            booksToDisplay.sort((a, b) => (b.publisher || '').localeCompare(a.publisher || '')); break;
-        case 'date-old':
-            booksToDisplay.sort((a, b) => a.id - b.id); break;
-        case 'date-new':
-        default:
-            booksToDisplay.sort((a, b) => b.id - a.id); break;
-    }
-
-    const mainContainer = document.getElementById('bookList');
-    if (mainContainer) {
-        mainContainer.innerHTML = '';
-        if (booksToDisplay.length === 0) {
-            mainContainer.innerHTML = '<p class="empty-message">Нічого не знайдено 📚</p>';
-        } else {
-            booksToDisplay.forEach(book => createBookCard(book, mainContainer));
-        }
-    }
-
-
-    // Wishlist окремо
-    renderWishlist();
+header h1 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
 }
 
-function renderReadHistory() {
-    const container = document.getElementById('historyList');
-    if (!container) return;
-    container.innerHTML = '';
-
-    // Відображаємо блок лише для поточного користувача (того, хто зайшов у додаток)
-    const myData = allUsersData[currentUser] || {};
-    const myReadIds = Object.keys(myData).filter(id => myData[id] && myData[id].isRead);
-
-    if (myReadIds.length === 0) {
-        container.innerHTML = '<p class="empty-message" style="padding: 20px; text-align: center; color: var(--text-muted);">Ви ще не позначили жодну книгу як прочитану 📚</p>';
-        return;
-    }
-
-    // Викликаємо рендеринг секції лише для себе
-    renderUserHistorySection("Мої прочитані книги", myReadIds, myData, container);
+.title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-function renderUserHistorySection(title, ids, userData, container) {
-    if (ids.length === 0) return;
-
-    const sectionHeader = document.createElement('div');
-    sectionHeader.className = 'history-user-header';
-    sectionHeader.innerHTML = `<h3>👤 ${title} <small>(${ids.length} кн.)</small></h3>`;
-    container.appendChild(sectionHeader);
-
-    const grid = document.createElement('div');
-    grid.className = 'book-list-container history-grid';
-    
-    // Сортуємо книги від нових до старих
-    const sortedIds = [...ids].sort((a, b) => b - a);
-
-    sortedIds.forEach(id => {
-        const bookMeta = rawBooks.find(b => b.id == id);
-        if (bookMeta) {
-            createBookCard({ ...bookMeta, isRead: true, rating: userData[id].rating || 0 }, grid);
-        }
-    });
-    container.appendChild(grid);
+.arrow {
+    font-size: 0.65em;
+    color: var(--accent-color);
+    flex-shrink: 0;
 }
 
-
-function renderWishlist() {  
-    const container = document.getElementById('wishlistList');
-    if (!container) return;
-    const wishlistBooks = books.filter(b => b.inWishlist);
-    container.innerHTML = '';
-    if (wishlistBooks.length === 0) {
-        container.innerHTML = '<p class="empty-message">Список бажань порожній ❤️</p>';
-        return;
-    }
-    wishlistBooks.forEach(book => createBookCard(book, container));
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
-// Допоміжна функція для створення картки (щоб уникнути дублювання коду)
-function createBookCard(book, container) {
-    const card = document.createElement('div');
-    card.className = 'book-card';
-    if (book.isRead) card.classList.add('read');
-
-    // Виправлення блокування картинок телефонами (Mixed Content)
-    let coverUrl = book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo';
-if (coverUrl.startsWith('http://')) {
-    coverUrl = coverUrl.replace('http://', 'https://');
+.header-icon-btn,
+#authBtn,
+#openModalBtn {
+    height: 34px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s ease, opacity 0.2s ease, background-color 0.2s ease;
 }
 
-    const ratingStars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
-
-    card.innerHTML = `
-        <div style="position: relative;">
-            ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
-            <img src="${coverUrl}" alt="${book.title}" onerror="this.src='https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=200&auto=format&fit=crop'">
-        </div>
-        <div class="book-info">
-            <h3>${book.title}</h3>
-            <p>${book.author}</p>
-            <div class="rating-display">${ratingStars}</div>
-        </div>
-    `;
-
-    card.onclick = () => openDetailsModal(book.id);
-    container.appendChild(card);
+.header-icon-btn {
+    width: 34px;
+    padding: 0;
+    background: var(--card-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
 }
 
-function renderBooks(arr) {
-    if (!bookList) return;
-    bookList.innerHTML = '';
-    
-    arr.forEach(book => {
-        const bookType = book.type || 'paper';
-        
-        const card = document.createElement('div');
-        card.className = 'book-card';
-        card.addEventListener('click', () => openDetailsModal(book.id));
-        
-        const stars = '★'.repeat(book.rating || 0) + '☆'.repeat(5 - (book.rating || 0));
-        const typeIcon = bookType === 'audio' ? '🎧' : (bookType === 'ebook' ? '📱' : '📖');
-        const publisherHTML = book.publisher ? `<p class="publisher">${book.publisher}</p>` : '';
-
-        card.innerHTML = `
-            ${book.isRead ? '<div class="read-badge">✅</div>' : ''}
-            <div class="type-badge">${typeIcon}</div>
-            <img src="${book.imageURL || 'https://placehold.co/200x280/161b22/white?text=No+Photo'}" 
-                 onerror="this.src='https://placehold.co/200x280/161b22/white?text=Error'">
-            <div class="book-info">
-                <div style="color: #ffca08; font-size: 0.8rem; margin-bottom: 4px;">${stars}</div>
-                <h3>${book.title}</h3>
-                <p>${book.author}</p>
-                ${publisherHTML}
-            </div>
-        `;
-        bookList.appendChild(card);
-    });
+#authBtn {
+    padding: 0 11px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
 }
 
-// --- Actions & Event Listeners ---
-const onAddSubmit = (e) => {
-    e.preventDefault();
-    if (!requireEditor('додавати книги')) return;
-
-    const titleVal = document.getElementById('title').value.trim();
-    const authorVal = document.getElementById('author').value.trim();
-
-    // Перевірка що поля не порожні
-    if (!titleVal || !authorVal) {
-        alert('Введіть назву і автора книги!');
-        return;
-    }
-    
-    // Перевірка на дублікат
-    const duplicate = books.find(b => 
-    (b.title || '').toLowerCase() === titleVal.toLowerCase() && 
-    (b.author || '').toLowerCase() === authorVal.toLowerCase()
-);
-    if (duplicate) {
-        if (!confirm(`Книга "${titleVal}" вже є в бібліотеці. Додати ще раз?`)) return;
-    }
-
-    const newBookId = Date.now();
-    const typeSelect = document.getElementById('addBookType');
-    
-    const newBook = { 
-        id: newBookId, 
-        title: titleVal, 
-        author: authorVal, 
-        imageURL: document.getElementById('imageURL').value,
-        pages: parseInt(document.getElementById('pages').value) || null,
-        publisher: document.getElementById('publisher').value,
-        type: typeSelect ? typeSelect.value : 'paper'
-    };
-
-    database.ref(`books/${newBookId}`).set(newBook)
-        .then(() => {
-            console.log("Нову книгу додано в спільну бібліотеку!");
-            closeModal();
-        })
-        .catch(error => console.error("Помилка додавання книги:", error));
-};
-if (addBookForm) addBookForm.onsubmit = onAddSubmit;
-
-if (searchInput) {
-    searchInput.oninput = function() {
-        currentSearchQuery = this.value;
-        if (clearSearchBtn) {
-            clearSearchBtn.style.display = this.value ? 'flex' : 'none';
-        }
-        displayBooks();
-    };
+#openModalBtn {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 0 12px;
+    white-space: nowrap;
 }
 
-if (clearSearchBtn) {
-    clearSearchBtn.onclick = function() {
-        if (searchInput) {
-            searchInput.value = '';
-            currentSearchQuery = '';
-            this.style.display = 'none';
-            searchInput.focus();
-            displayBooks();
-        }
-    };
+/* --- Dropdown --- */
+.dropdown-content {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    background-color: rgba(28, 28, 30, 0.96);
+    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(25px);
+    min-width: 230px;
+    border-radius: 14px;
+    padding: 6px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+    border: 0.5px solid var(--border-color);
+    flex-direction: column;
+    z-index: 1100;
 }
 
-if (sortSelect) {
-    sortSelect.onchange = function() {
-        currentSortOrder = this.value;
-        displayBooks();
-    };
+.dropdown-content.show {
+    display: flex;
 }
 
-if (publisherFilter) {
-    publisherFilter.onchange = function() {
-        currentPublisher = this.value;
-        displayBooks();
-    };
+.dropdown-content button {
+    background: transparent;
+    color: var(--text-main);
+    border: none;
+    padding: 10px 12px;
+    text-align: left;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 0.88rem;
 }
 
-window.filterByType = (type) => {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    const activeButton = Array.from(document.querySelectorAll('.tab-btn')).find(btn => btn.getAttribute('onclick').includes(`'${type}'`));
-    if (activeButton) activeButton.classList.add('active');
-    currentFilterType = type;
-    displayBooks();
-};
-
-window.exportBooks = () => {
-    const blob = new Blob([JSON.stringify(books, null, 2)], {type: 'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'library_backup.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-};
-
-window.importBooks = (e) => {
-    if (!requireEditor('імпортувати книги')) {
-        e.target.value = '';
-        return;
-    }
-
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        try {
-            const importedBooks = JSON.parse(ev.target.result);
-            if (Array.isArray(importedBooks)) {
-                books = importedBooks;
-                saveBooks();
-                displayBooks();
-            } else {
-                alert('Помилка: Неправильний формат файлу.');
-            }
-        } catch (error) {
-            alert('Помилка читання файлу.');
-        }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-};
-
-// --- Details Modal ---
-let currentDetailsId = null;
-let tempRating = 0;
-
-function updateCoverPreview(url) {
-    if (coverPreview) {
-        if (url) {
-            coverPreview.src = url;
-            coverPreview.style.display = 'block';
-        } else {
-            coverPreview.src = '';
-            coverPreview.style.display = 'none';
-        }
-    }
+.dropdown-content button:hover {
+    background: var(--border-color);
 }
 
-function openEditModal(id) {
-    if (!requireEditor('редагувати книги')) return;
-
-    const book = books.find(x => x.id === id);
-    if (!book) return;
-
-    document.querySelector('#addBookModal h2').textContent = 'Редагувати книгу';
-    document.getElementById('title').value = book.title;
-    document.getElementById('author').value = book.author;
-    document.getElementById('imageURL').value = book.imageURL || '';
-    document.getElementById('pages').value = book.pages || '';
-    document.getElementById('publisher').value = book.publisher || '';
-    
-    updateCoverPreview(book.imageURL || ''); // Show existing cover
-    
-    addBookForm.onsubmit = (e) => {
-        e.preventDefault();
-        const updatedBook = {
-            title: document.getElementById('title').value,
-            author: document.getElementById('author').value,
-            imageURL: document.getElementById('imageURL').value,
-            pages: parseInt(document.getElementById('pages').value) || null,
-            publisher: document.getElementById('publisher').value
-        };
-        database.ref(`books/${id}`).update(updatedBook).then(() => closeModal());
-    };
-    
-    modal.style.display = "flex";
+/* --- Currently Reading Banner --- */
+.currently-reading-banner {
+    margin: 14px 15px 6px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--accent-soft) 0%, var(--card-bg) 75%);
+    border: 1px solid rgba(94, 92, 230, 0.45);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
-window.openDetailsModal = (id) => {
-    // Шукаємо спочатку в books, потім у rawBooks (якщо книга прихована для поточного користувача)
-    const book = books.find(b => b.id === id) || rawBooks.find(b => b.id === id);
-    if (!book) return;
-
-    currentDetailsId = id;
-    tempRating = book.rating || 0;
-    
-    document.getElementById('detailsTitle').textContent = book.title;
-    document.getElementById('detailsAuthor').textContent = book.author;
-    document.getElementById('detailsPublisher').value = book.publisher || '';
-    document.getElementById('detailsReadStatus').checked = book.isRead || false;
-    document.getElementById('detailsBookType').value = book.type || 'paper';
-    updateWishlistBtn(book.inWishlist || false);
-    updateStarsUI(tempRating);
-    document.getElementById('detailsPages').value = book.pages || '';
-    document.getElementById('detailsCurrentlyReading').checked = book.isCurrentlyReading || false;
-    document.getElementById('detailsModal').style.display = "flex";
-    updateScrollToTopVisibility();
-    
-    const readDateContainer = document.getElementById('readDateContainer');
-    const readDate = book.readDate || '';
-    document.getElementById('detailsReadDate').value = readDate;
-    if (readDateContainer) {
-        readDateContainer.style.display = book.isRead ? 'block' : 'none';
-    }
-};
-
-function closeDetailsModal() {
-    document.getElementById('detailsModal').style.display = "none";
-    updateScrollToTopVisibility();
+.currently-reading-banner:hover {
+    border-color: var(--accent-color);
 }
 
-document.querySelectorAll('.star').forEach(star => {
-    star.onclick = function() {
-        tempRating = parseInt(this.getAttribute('data-value'));
-        updateStarsUI(tempRating);
-    };
-});
-
-function updateStarsUI(rating) {
-    document.querySelectorAll('.star').forEach((s, i) => {
-        s.textContent = i < rating ? '★' : '☆';
-    });
+.currently-reading-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-// --- Scanner Logic ---
-function startScanner() {
-    if (typeof Quagga === 'undefined') {
-        alert('Бібліотеку сканера не завантажено!');
-        return;
-    }
-
-    const targetContainer = document.querySelector('#interactive');
-    if (!targetContainer) return;
-
-    Quagga.init({
-        inputStream : {
-            name : "Live",
-            type : "LiveStream",
-            target: targetContainer,
-            constraints: {
-                width: 480,
-                height: 320,
-                facingMode: "environment"
-            },
-        },
-        decoder : {
-            readers : ["ean_reader"]
-        },
-        locate: true,
-    }, function(err) {
-        if (err) {
-            console.error(err);
-            alert("Помилка запуску камери: " + err);
-            return;
-        }
-        Quagga.start();
-    });
-
-    Quagga.onDetected(function(result) {
-        var code = result.codeResult.code;
-        Quagga.stop();
-        switchSection('home');
-        
-        fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${code}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.items && data.items.length > 0) {
-                    const book = data.items[0].volumeInfo;
-                    
-                    document.getElementById('title').value = book.title || '';
-                    document.getElementById('author').value = book.authors ? book.authors.join(', ') : '';
-                    document.getElementById('imageURL').value = book.imageLinks ? book.imageLinks.thumbnail : '';
-                    document.getElementById('pages').value = book.pageCount || '';
-                    document.getElementById('publisher').value = book.publisher || '';
-                    
-                    document.querySelector('#addBookModal h2').textContent = 'Додати знайдену книгу';
-                    addBookForm.onsubmit = onAddSubmit;
-                    updateCoverPreview(book.imageLinks ? book.imageLinks.thumbnail : '');
-                    modal.style.display = "flex";
-                } else {
-                    alert(`Книгу з ISBN ${code} не знайдено в мережі.`);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching book data:', error);
-                alert('Помилка пошуку інформації про книгу.');
-            });
-    });
+#currentlyReadingCover {
+    width: 44px;
+    height: 66px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
-// --- Navigation Logic ---
-function switchSection(sectionId) {
-    // Ховаємо абсолютно всі секції
-    document.querySelectorAll('.app-section').forEach(s => s.style.display = 'none');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-    // Показуємо вибрану секцію
-    if (sectionId === 'home') {
-        document.getElementById('home-section').style.display = 'block';
-        currentFilterType = 'all'; // Повертаємо показ усіх звичайних книг
-    } else if (sectionId === 'wishlist') {
-        document.getElementById('wishlist-section').style.display = 'block';
-        currentFilterType = 'wishlist'; // Вказуємо, що ми у списку бажань
-    } else if (sectionId === 'history') {
-        document.getElementById('history-section').style.display = 'block';
-        renderReadHistory();
-    } else if (sectionId === 'stats') {
-        document.getElementById('stats-section').style.display = 'block';
-        updateStats();
-    }
-    
-    // Активуємо всі відповідні кнопки (наприклад, і в хедері, і в нижній панелі)
-    document.querySelectorAll(`button[onclick="switchSection('${sectionId}')"]`).forEach(btn => {
-        btn.classList.add('active');
-    });
-    
-    // Перерендерюємо книги під нову секцію
-    displayBooks();
-    updateScrollToTopVisibility();
-}
-window.switchSection = switchSection;
-
-// --- Stats & System Updates ---
-function updateStats() {
-    if (!books || books.length === 0) {
-        ['statTotal','statRead','statPaper','statEbook','statAudio','statAvgRating']
-            .forEach(id => { if(document.getElementById(id)) document.getElementById(id).textContent = '0'; });
-        return;
-    }
-
-    const actualBooks = books.filter(b => !b.inWishlist);
-    const readBooks = actualBooks.filter(b => b.isRead === true);
-    const unreadBooks = actualBooks.filter(b => !b.isRead);
-    const readCount = readBooks.length;
-    const total = actualBooks.length;
-    const percentage = total > 0 ? Math.round((readCount / total) * 100) : 0;
-
-    // Основні цифри
-    if(document.getElementById('statTotal')) document.getElementById('statTotal').textContent = total;
-    if(document.getElementById('statRead')) document.getElementById('statRead').textContent = readCount;
-    if(document.getElementById('statUnread')) document.getElementById('statUnread').textContent = unreadBooks.length;
-    if(document.getElementById('statPercentage')) document.getElementById('statPercentage').textContent = percentage + '%';
-
-    // Типи книг
-    if(document.getElementById('statPaper')) document.getElementById('statPaper').textContent = actualBooks.filter(b => (b.type || 'paper') === 'paper').length;
-    if(document.getElementById('statEbook')) document.getElementById('statEbook').textContent = actualBooks.filter(b => b.type === 'ebook').length;
-    if(document.getElementById('statAudio')) document.getElementById('statAudio').textContent = actualBooks.filter(b => b.type === 'audio').length;
-
-    // Середній рейтинг
-    const ratedBooks = actualBooks.filter(b => b.rating > 0);
-    const avgRating = ratedBooks.length > 0
-        ? (ratedBooks.reduce((sum, b) => sum + b.rating, 0) / ratedBooks.length).toFixed(1)
-        : 'N/A';
-    if(document.getElementById('statAvgRating')) document.getElementById('statAvgRating').textContent = avgRating;
-
-    // Топ авторів і видавництв
-    const getTopItems = (items, limit = 15) => {
-        const counts = items.reduce((acc, item) => {
-            if (item) acc[item] = (acc[item] || 0) + 1;
-            return acc;
-        }, {});
-        return Object.entries(counts).sort(([,a],[,b]) => b-a).slice(0, limit);
-    };
-
-    const topAuthorsUl = document.getElementById('statTopAuthors');
-    if (topAuthorsUl) {
-        const topAuthors = getTopItems(actualBooks.map(b => b.author));
-        topAuthorsUl.innerHTML = topAuthors.map(a => `<li>${a[0]} <span>(${a[1]})</span></li>`).join('') || '<li>Немає даних</li>';
-        const card = document.getElementById('topAuthorsCard');
-        if (card) card.style.display = 'block';
-    }
-
-    const topPublishersUl = document.getElementById('statTopPublishers');
-    if (topPublishersUl) {
-        const topPublishers = getTopItems(actualBooks.map(b => b.publisher).filter(Boolean));
-        topPublishersUl.innerHTML = topPublishers.map(p => `<li>${p[0]} <span>(${p[1]})</span></li>`).join('') || '<li>Немає даних</li>';
-        const card = document.getElementById('topPublishersCard');
-        if (card) card.style.display = 'block';
-    }
-
-    // Розподіл рейтингів
-    const ratingDist = [1,2,3,4,5].reduce((acc, r) => {
-        acc[r] = actualBooks.filter(b => b.rating === r).length;
-        return acc;
-    }, {});
-    const maxRatingCount = Math.max(...Object.values(ratingDist), 1);
-    const ratingDistContainer = document.getElementById('ratingDist');
-    if (ratingDistContainer) {
-        ratingDistContainer.innerHTML = Object.entries(ratingDist).map(([rating, count]) => {
-            const width = Math.round((count / maxRatingCount) * 100);
-            return `
-                <div style="display:flex; align-items:center; margin-bottom:8px; gap:8px;">
-                    <span style="width:60px; color:#ffca08;">${'★'.repeat(parseInt(rating))}</span>
-                    <div style="flex:1; background:var(--border-color); border-radius:4px; overflow:hidden; height:10px;">
-                        <div style="width:${width}%; height:100%; background:var(--accent-color); border-radius:4px;"></div>
-                    </div>
-                    <span style="width:25px; text-align:right; color:var(--text-muted); font-size:0.85rem;">${count}</span>
-                </div>`;
-        }).join('');
-        const ratingDistCard = document.getElementById('ratingDistCard');
-        if (ratingDistCard) ratingDistCard.style.display = ratedBooks.length > 0 ? 'block' : 'none';
-    }
-
-    // Прогрес читання
-    const readPercent = total > 0 ? Math.round((readCount / total) * 100) : 0;
-    const readProgressEl = document.getElementById('readProgress');
-    if (readProgressEl) {
-        readProgressEl.innerHTML = `
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:0.9rem; color:var(--text-muted);">
-                <span>Прочитано ${readCount} з ${total}</span>
-                <span>${readPercent}%</span>
-            </div>
-            <div style="background:var(--border-color); border-radius:8px; overflow:hidden; height:14px;">
-                <div style="width:${readPercent}%; height:100%; background:var(--accent-color); border-radius:8px;"></div>
-            </div>`;
-        const card = document.getElementById('readProgressCard');
-        if (card) card.style.display = 'block';
-    }
-
-    // Прочитано по місяцях
-    const readByMonth = {};
-    actualBooks.filter(b => b.isRead && b.readDate).forEach(b => {
-        const [year, month] = b.readDate.split('-');
-        const label = new Date(year, month - 1).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' });
-        readByMonth[b.readDate] = readByMonth[b.readDate] || { label, count: 0 };
-        readByMonth[b.readDate].count++;
-    });
-    const sortedMonths = Object.keys(readByMonth).sort().reverse();
-    const maxMonthCount = Math.max(...sortedMonths.map(k => readByMonth[k].count), 1);
-    const readByMonthEl = document.getElementById('statReadByMonth');
-    if (readByMonthEl) {
-        readByMonthEl.innerHTML = sortedMonths.length > 0
-            ? sortedMonths.map(key => {
-                const { label, count } = readByMonth[key];
-                const width = Math.round((count / maxMonthCount) * 100);
-                return `
-                    <li style="flex-direction:column; align-items:flex-start; gap:4px;">
-                        <div style="display:flex; justify-content:space-between; width:100%;">
-                            <span>${label}</span>
-                            <span style="color:var(--text-muted);">${count} кн.</span>
-                        </div>
-                        <div style="width:100%; background:var(--border-color); border-radius:4px; overflow:hidden; height:6px;">
-                            <div style="width:${width}%; height:100%; background:var(--accent-color); border-radius:4px;"></div>
-                        </div>
-                    </li>`;
-            }).join('')
-            : '<li>Немає даних — вкажіть дату прочитання у деталях книги</li>';
-        const card = document.getElementById('readByMonthCard');
-        if (card) card.style.display = sortedMonths.length > 0 ? 'block' : 'none';
-    }
-
-    // Статистика сторінок
-    const booksWithPages = readBooks.filter(b => b.pages > 0);
-    const pagesUl = document.getElementById('statPages');
-    if (pagesUl) {
-        if (booksWithPages.length > 0) {
-            const totalPagesCount = booksWithPages.reduce((sum, b) => sum + b.pages, 0);
-            const avgPages = Math.round(totalPagesCount / booksWithPages.length);
-            const maxBook = booksWithPages.reduce((a, b) => a.pages > b.pages ? a : b);
-            const minBook = booksWithPages.reduce((a, b) => a.pages < b.pages ? a : b);
-            pagesUl.innerHTML = `
-                <li><span style="flex:1">📚 Всього сторінок прочитано</span><span>${totalPagesCount.toLocaleString('uk-UA')}</span></li>
-                <li><span style="flex:1">📊 Середня кількість сторінок</span><span>${avgPages}</span></li>
-                <li><span style="flex:1">🏆 Найбільша — ${maxBook.title}</span><span>${maxBook.pages} стор.</span></li>
-                <li><span style="flex:1">🪶 Найменша — ${minBook.title}</span><span>${minBook.pages} стор.</span></li>`;
-        } else {
-            pagesUl.innerHTML = '<li>Немає даних — вкажіть кількість сторінок у деталях книги</li>';
-        }
-        const card = document.getElementById('pagesStatsCard');
-        if (card) card.style.display = 'block';
-    }
-
-    // Розподіл за довжиною книг
-    const lengthDistContainer = document.getElementById('lengthDist');
-    if (lengthDistContainer) {
-        const lengthGroups = [
-            { label: '📗 Короткі (<200 стор.)', count: readBooks.filter(b => b.pages > 0 && b.pages < 200).length, color: '#32d74b' },
-            { label: '📘 Середні (200-500 стор.)', count: readBooks.filter(b => b.pages >= 200 && b.pages <= 500).length, color: '#5e5ce6' },
-            { label: '📕 Товсті (>500 стор.)', count: readBooks.filter(b => b.pages > 500).length, color: '#ff453a' }
-        ];
-
-        const totalWithPages = lengthGroups.reduce((sum, g) => sum + g.count, 0);
-        
-        lengthDistContainer.innerHTML = lengthGroups.map(group => {
-            const width = totalWithPages > 0 ? Math.round((group.count / totalWithPages) * 100) : 0;
-            return `
-                <div style="margin-bottom:12px;">
-                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
-                        <span>${group.label}</span>
-                        <span style="color:var(--text-muted);">${group.count} кн.</span>
-                    </div>
-                    <div style="background:var(--border-color); border-radius:4px; height:8px; overflow:hidden;">
-                        <div style="width:${width}%; height:100%; background:${group.color}; border-radius:4px;"></div>
-                    </div>
-                </div>`;
-        }).join('');
-        document.getElementById('lengthDistCard').style.display = totalWithPages > 0 ? 'block' : 'none';
-    }
-
-    // Деталі по типах
-    const typeCounts = actualBooks.reduce((acc, book) => {
-        const t = book.type || 'paper';
-        acc[t] = (acc[t] || 0) + 1;
-        return acc;
-    }, {});
-    const typeLabels = { 'paper': '📖 Паперові', 'ebook': '📱 Електронні', 'audio': '🎧 Аудіокниги' };
-    const typeBreakdownUl = document.getElementById('statTypeBreakdown');
-    if (typeBreakdownUl) {
-        typeBreakdownUl.innerHTML = Object.keys(typeLabels).map(t => {
-            const count = typeCounts[t] || 0;
-            const pct = total > 0 ? Math.round(count / total * 100) : 0;
-            return `<li><span>${typeLabels[t]}</span><strong>${count}</strong><span>(${pct}%)</span></li>`;
-        }).join('');
-        const card = document.getElementById('typeBreakdownCard');
-        if (card) card.style.display = 'block';
-    }
-
-    // Найвище оцінені
-    const topRatedUl = document.getElementById('statTopRated');
-    if (topRatedUl) {
-        const topRated = actualBooks.filter(b => b.rating > 0).sort((a, b) => b.rating - a.rating).slice(0, 5);
-        topRatedUl.innerHTML = topRated.length > 0
-            ? topRated.map(b => `
-                <li>
-                    <span style="color:#ffca08; white-space:nowrap; flex-shrink:0;">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</span>
-                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.title}</span>
-                    <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
-                </li>`).join('')
-            : '<li>Немає оцінених книг</li>';
-        const card = document.getElementById('topRatedCard');
-        if (card) card.style.display = topRated.length > 0 ? 'block' : 'none';
-    }
-
-    // Ще не прочитано
-    const unreadCardContainer = document.getElementById('unreadCard');
-    const unreadListUl = unreadCardContainer ? unreadCardContainer.querySelector('ul') : null;
-    if (unreadListUl) {
-        const displayUnread = unreadBooks.slice(0, 10);
-        unreadListUl.innerHTML = displayUnread.length === 0
-            ? '<li>Усі книги прочитано! 🎉</li>'
-            : displayUnread.map(b => `
-                <li>
-                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.title}</span>
-                    <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
-                </li>`).join('');
-        if (unreadCardContainer) unreadCardContainer.style.display = 'block';
-    }
-
-    // Wishlist в статистиці
-    const wishlistBooks = books.filter(b => b.inWishlist);
-    const statWishlistEl = document.getElementById('statWishlist');
-    if (statWishlistEl) {
-        statWishlistEl.innerHTML = wishlistBooks.length > 0
-            ? wishlistBooks.map(b => `
-                <li>
-                    <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${b.title}</span>
-                    <span style="color:var(--text-muted); white-space:nowrap; flex-shrink:0;">— ${b.author}</span>
-                </li>`).join('')
-            : '<li>Список порожній</li>';
-        const card = document.getElementById('wishlistCard');
-        if (card) card.style.display = 'block';
-    }
-
-    // Річна ціль
-    updateYearGoal();
+.currently-reading-meta {
+    min-width: 0;
+    flex: 1;
 }
 
-document.getElementById('saveDetailsBtn').onclick = () => {
-    if (!requireEditor('зберігати зміни')) return;
+.currently-reading-label {
+    margin: 0 0 3px;
+    font-size: 0.72rem;
+    color: #9e9cff;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
 
-    // const index = books.find(b => b.id === currentDetailsId); 
-    if (currentDetailsId) {
-        const isCurrently = document.getElementById('detailsCurrentlyReading').checked;
-        const isRead = document.getElementById('detailsReadStatus').checked;
-        const type = document.getElementById('detailsBookType').value;
-        const publisher = document.getElementById('detailsPublisher').value;
-        const pages = parseInt(document.getElementById('detailsPages').value) || null;
-        const readDate = document.getElementById('detailsReadDate').value;
+.currently-reading-title {
+    margin: 0 0 2px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-        // 1. Якщо цей пристрій вмикає "Зараз читаю", спочатку скидаємо цей статус 
-        // для ВСІХ інших ОСОБИСТИХ книг цього користувача в Firebase
-        if (isCurrently) {
-            database.ref(`user_data/${currentUser}`).once('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    Object.keys(data).forEach(bookId => {
-                        if (data[bookId].isCurrentlyReading) {
-                            database.ref(`user_data/${currentUser}/${bookId}/isCurrentlyReading`).set(false);
-                        }
-                    });
-                }
-            });
-        }
+.currently-reading-author {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-        // 2. Зберігаємо ОСОБИСТІ відмітки користувача в його окрему гілку
-        // (Тут зберігаються: статус читання, оцінка, прогрес, дата і список бажань)
-        const userBookData = {
-            isRead: isRead,
-            rating: tempRating,
-            isCurrentlyReading: isCurrently,
-            readDate: readDate,
-            inWishlist: books.find(b => b.id === currentDetailsId)?.inWishlist || false
-        };
+/* --- Tabs, Search & Filters --- */
+.tabs-container {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 15px 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
 
-        database.ref(`user_data/${currentUser}/${currentDetailsId}`).set(userBookData)
-            .then(() => {
-                console.log(`Особисті відмітки для "${currentUser}" успішно збережено в хмарі!`);
-                closeDetailsModal();
-            })
-            .catch(error => console.error("Помилка збереження особистих даних:", error));
-            
-        // 3. Якщо тип книги, видавництво чи сторінки змінилися — це загальні характеристики книги, 
-        // які мають бачити всі. Оновимо їх у загальній гілці книги (опціонально, для порядку)
-        database.ref(`books/${currentDetailsId}`).update({
-            type: type,
-            publisher: publisher,
-            pages: pages
-        });
-    }
-};
+.tabs-container::-webkit-scrollbar {
+    display: none;
+}
 
-document.getElementById('deleteInDetailsBtn').onclick = function() {
-    if (!requireEditor('видаляти книги')) return;
+.tab-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
 
-    if (!currentDetailsId) return;
-    
-    const book = books.find(b => b.id === currentDetailsId);
-    const isInWishlist = book && book.inWishlist;
-    
-    if (isInWishlist) {
-        // Книга в wishlist — просто ховаємо її для себе
-        if (!confirm("Видалити цю книгу зі свого списку бажань?")) return;
-        database.ref(`user_data/${currentUser}/${currentDetailsId}`).update({
-            inWishlist: false,
-            hidden: true  // ← прихована тільки для тебе
-        }).then(() => closeDetailsModal());
-    } else {
-        // Звичайна книга — видаляємо для всіх
-        if (!confirm("Видалити цю книгу для всіх користувачів?")) return;
-        database.ref(`books/${currentDetailsId}`).remove();
-        database.ref(`user_data/${currentUser}/${currentDetailsId}`).remove();
-        closeDetailsModal();
-    }
-};
+.tab-btn.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
 
-document.getElementById('goToEditBtn').onclick = function() {
-    if (!requireEditor('редагувати книги')) return;
+.search-container {
+    padding: 0 15px;
+    display: flex;
+    justify-content: center;
+}
 
-    if (currentDetailsId) {
-        const bookId = currentDetailsId;
-        closeDetailsModal();
-        openEditModal(bookId);
-    }
-};
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
 
-document.getElementById('wishlistToggleBtn').onclick = function() {
-    if (!requireEditor('змінювати список бажань')) return;
+.search-icon {
+    position: absolute;
+    left: 13px;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    pointer-events: none;
+}
 
-    const book = books.find(b => b.id === currentDetailsId);
-    if (book) {
-        const newWishlistStatus = !book.inWishlist;
-        
-        // Пишемо статус сердечка в особисту папку користувача
-        database.ref(`user_data/${currentUser}/${currentDetailsId}/inWishlist`).set(newWishlistStatus)
-            .then(() => {
-                book.inWishlist = newWishlistStatus;
-                updateWishlistBtn(newWishlistStatus);
-            });
-    }
-};
+#searchInput {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 10px 38px 10px 36px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
 
-function updateWishlistBtn(isInWishlist) {
-    const btn = document.getElementById('wishlistToggleBtn');
-    if (!btn) return;
-    if (isInWishlist) {
-        btn.textContent = '💔 Видалити зі списку';
-        btn.style.color = '#f85149';
-    } else {
-        btn.textContent = '❤️ В список бажань';
-        btn.style.color = 'var(--text-muted)';
+#searchInput:focus {
+    border-color: var(--accent-color);
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.16);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    cursor: pointer;
+    z-index: 5;
+}
+
+.controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px 6px;
+    gap: 10px;
+}
+
+.sort-container,
+.filter-container {
+    flex: 1;
+    min-width: 0;
+}
+
+#sortSelect,
+#publisherFilter {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 9px 12px;
+    border-radius: 10px;
+    outline: none;
+    font-size: 0.82rem;
+}
+
+/* --- Book Grid & Cards --- */
+.book-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    padding: 12px 15px 15px;
+}
+
+.empty-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+@keyframes cardFadeIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.book-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease, border-color 0.2s ease;
+    animation: cardFadeIn 0.25s ease forwards;
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+.book-card:active {
+    transform: scale(0.97);
+}
+
+.book-card img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    display: block;
+    background-color: #141416;
+}
+
+.book-info {
+    padding: 10px 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex-grow: 1;
+}
+
+.book-info h3 {
+    font-size: 0.88rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.book-info p {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rating-display {
+    color: #ffca08;
+    font-size: 0.82rem;
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+}
+
+.read-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 1.15rem;
+    z-index: 10;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.85));
+    pointer-events: none;
+}
+
+.type-icon-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.62);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: 3px 6px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    z-index: 5;
+    pointer-events: none;
+}
+
+/* --- Modals --- */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.68);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    z-index: 2000;
+}
+
+@keyframes modalZoomIn {
+    from { opacity: 0; transform: scale(0.94) translateY(16px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-content {
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+    padding: 22px;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 390px;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    animation: modalZoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-content h2 {
+    margin: 0 34px 12px 0;
+    font-size: 1.15rem;
+    line-height: 1.3;
+}
+
+.close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--text-main);
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="url"],
+.modal-content input[type="number"],
+.modal-content input[type="month"],
+.modal-content select {
+    width: 100%;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 10px 12px;
+    margin: 6px 0 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+    border-color: var(--accent-color);
+}
+
+.modal-content button[type="submit"] {
+    width: 100%;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+}
+
+.details-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-right: 28px;
+}
+
+#detailsCover {
+    width: 66px;
+    height: 99px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+    background: #141416;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.details-header-text {
+    min-width: 0;
+    flex: 1;
+}
+
+.details-header-text h2 {
+    margin: 0 0 4px;
+}
+
+.details-author {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.field-label {
+    margin: 0 0 2px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    margin: 10px 0;
+    font-size: 0.95rem;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-color);
+    margin: 0;
+}
+
+#starsInput {
+    font-size: 1.85rem;
+    color: #ffca08;
+    cursor: pointer;
+    margin: 12px 0 16px;
+    display: flex;
+    gap: 4px;
+}
+
+.star {
+    transition: transform 0.1s ease;
+    display: inline-block;
+}
+
+.star:hover {
+    transform: scale(1.18);
+}
+
+.btn-secondary-full {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.88rem;
+}
+
+.btn-primary-full {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.details-bottom-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-edit-sub {
+    flex: 2;
+    padding: 10px;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.btn-delete-sub {
+    flex: 1;
+    padding: 10px;
+    background: rgba(255, 69, 58, 0.12);
+    color: var(--danger);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+/* --- Autocomplete --- */
+#autocomplete-suggestions {
+    position: relative;
+    z-index: 2001;
+}
+
+.autocomplete-items {
+    position: absolute;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    z-index: 99;
+    top: -12px;
+    left: 0;
+    right: 0;
+    background-color: var(--card-bg-elevated);
+    border-radius: 0 0 10px 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+}
+
+.autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover {
+    background-color: var(--border-color);
+}
+
+.autocomplete-item strong {
+    color: var(--text-main);
+    font-size: 0.88rem;
+}
+
+/* --- Scanner --- */
+.scanner-container {
+    padding: 16px;
+    text-align: center;
+}
+
+#interactive.viewport {
+    position: relative;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 2px solid var(--accent-color);
+    margin: 12px auto;
+    max-width: 480px;
+}
+
+#interactive.viewport canvas,
+#interactive.viewport video {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+#interactive.viewport::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    width: 80%;
+    height: 2px;
+    background: rgba(255, 69, 58, 0.7);
+    box-shadow: 0 0 8px var(--danger);
+}
+
+/* --- Sections & Bottom Navigation --- */
+@keyframes sectionAppear {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.app-section {
+    padding-bottom: 92px;
+    animation: sectionAppear 0.25s ease-out forwards;
+}
+
+.section-header {
+    padding: 14px 15px 4px;
+}
+
+.section-header h2 {
+    margin: 0 0 4px;
+    font-size: 1.3rem;
+}
+
+.section-subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    min-height: 64px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    background: var(--header-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 0.5px solid var(--border-color);
+    z-index: 1000;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-item span {
+    font-size: 1.22rem;
+    line-height: 1;
+}
+
+.nav-item p {
+    margin: 4px 0 0;
+}
+
+.nav-item.active {
+    color: var(--accent-color);
+    transform: translateY(-1px);
+}
+
+/* --- Stats --- */
+.stats-container {
+    padding: 0 15px;
+}
+
+.stats-container h2 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin: 18px 0 4px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px 14px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-card span {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1;
+}
+
+.stat-card-full {
+    grid-column: 1 / -1;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 16px 18px;
+    border-radius: 14px;
+    margin-top: 12px;
+}
+
+.stat-card-full h4 {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.year-goal-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.year-goal-row input {
+    flex: 1;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.year-goal-row button {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 9px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.list-stat ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.list-stat li {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.list-stat li:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.list-stat li span {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.list-stat li strong {
+    color: var(--text-main);
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* --- History --- */
+.history-user-header {
+    padding: 18px 15px 10px;
+    border-bottom: 1px solid var(--border-color);
+    margin: 10px 15px 0;
+    background: linear-gradient(90deg, rgba(50, 215, 75, 0.12) 0%, transparent 100%);
+    border-radius: 12px 12px 0 0;
+}
+
+.history-user-header h3 {
+    margin: 0;
+    color: var(--success);
+    font-size: 1.05rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-grid {
+    padding-top: 12px;
+}
+
+/* --- Scroll to Top --- */
+.scroll-to-top-btn {
+    position: fixed;
+    bottom: 84px;
+    right: 18px;
+    width: 42px;
+    height: 42px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.15rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(16px);
+    transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1500;
+}
+
+.scroll-to-top-btn.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* --- Responsive --- */
+@media screen and (max-width: 768px) {
+    .tabs-container {
+        justify-content: flex-start;
     }
 }
 
-// --- Dynamic Search Autocomplete ---
-let autocompleteTimeout;
-let currentSuggestions = [];
-const titleInput = document.getElementById('title');
-const authorInput = document.getElementById('author');
-const imageURLInput = document.getElementById('imageURL');
-const suggestionsContainer = document.getElementById('autocomplete-suggestions');
-
-if (imageURLInput) {
-    imageURLInput.addEventListener('input', () => updateCoverPreview(imageURLInput.value));
-}
-
-function debounce(func, delay) {
-    clearTimeout(autocompleteTimeout);
-    autocompleteTimeout = setTimeout(func, delay);
-}
-
-if (titleInput) {
-    titleInput.addEventListener('input', () => {
-        debounce(fetchAutocompleteSuggestions, 900);
-    });
-}
-
-
-  // Ініціалізація додатку
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-const auth = firebase.auth();
-auth.getRedirectResult().catch(error => {
-    if (error.code && error.code !== 'auth/no-auth-event') {
-        console.error('Redirect error:', error);
+@media screen and (max-width: 420px) {
+    header {
+        padding: 10px 12px;
     }
-});
-
-// ДОДАТИ після getRedirectResult блоку:
-window.toggleAuth = () => {
-    if (currentAuthUser) {
-        auth.signOut();
-        return;
+    header h1 {
+        font-size: 0.95rem;
     }
-
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    auth.signInWithPopup(provider).catch(error => {
-        if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
-            auth.signInWithRedirect(provider);
-        } else {
-            alert('❌ Помилка входу:\n' + error.code + '\n' + error.message);
-        }
-    });
-};
-
-auth.onAuthStateChanged(user => {
-    currentAuthUser = user;
-    setEditingEnabled(isAllowedEditor(user));
-    updateAuthUI();
-
-    if (user && !canEditLibrary) {
-        console.warn(`Signed in email is not allowed to edit this library: ${user.email}`);
-    }
-});
-
-setEditingEnabled(false);
-updateAuthUI();
-
-function fetchAutocompleteSuggestions() {
-    const query = titleInput.value.trim();
-    if (query.length < 3) {
-        clearSuggestions();
-        return;
-    }
-
-    // Будуємо лінк. Якщо ключ є — додаємо його, якщо немає — пробуємо анонімно
-    let url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`;
-    if (googleBooksApiKey) {
-    url += `&key=${googleBooksApiKey}`;
-}
-
-    fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Помилка сервера: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.items) {
-                currentSuggestions = data.items;
-                renderAutocompleteSuggestions(data.items);
-            } else {
-                clearSuggestions();
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching suggestions:', error);
-            // Якщо все ще вилітає 429, виводимо зрозуміле попередження в консоль
-            if (error.message.includes('429')) {
-                console.warn("Google все ще блокує IP. Потрібно вставити валідний API Key.");
-            }
-            clearSuggestions();
-        });
-}
-
- 
-
-function renderAutocompleteSuggestions(suggestions) {
-    if (!suggestionsContainer) return;
-    suggestionsContainer.innerHTML = '';
-    
-    const itemsWrapper = document.createElement('div');
-    itemsWrapper.className = 'autocomplete-items';
-
-    suggestions.forEach((item, index) => {
-        const info = item.volumeInfo;
-        const div = document.createElement('div');
-        div.className = 'autocomplete-item';
-        
-        const thumb = info.imageLinks ? info.imageLinks.smallThumbnail : 'https://placehold.co/30x40/161b22/white?text=✏️';
-        const authorText = info.authors ? info.authors.join(', ') : 'Невідомий автор';
-        
-        div.innerHTML = `
-            <img src="${thumb}" style="width:30px; height:40px; object-fit:cover; border-radius:4px;">
-            <div style="display:flex; flex-direction:column; min-width:0;">
-                <strong style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${info.title}</strong>
-                <small style="color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${authorText}</small>
-            </div>
-        `;
-        div.addEventListener('click', () => onSuggestionClick(index));
-        itemsWrapper.appendChild(div);
-    });
-    suggestionsContainer.appendChild(itemsWrapper);
-}
-
-function onSuggestionClick(index) {
-    const selectedBook = currentSuggestions[index].volumeInfo;
-    
-    titleInput.value = selectedBook.title || '';
-    authorInput.value = selectedBook.authors ? selectedBook.authors.join(', ') : '';
-    document.getElementById('pages').value = selectedBook.pageCount || '';
-    document.getElementById('publisher').value = selectedBook.publisher || '';
-    
-    const imageUrl = selectedBook.imageLinks ? selectedBook.imageLinks.thumbnail : '';
-    imageURLInput.value = imageUrl;
-    
-    updateCoverPreview(imageUrl);
-    clearSuggestions();
-}
-
-function clearSuggestions() {
-    if (suggestionsContainer) suggestionsContainer.innerHTML = '';
-    currentSuggestions = [];
-}
-
-document.addEventListener('click', function(event) {
-    if (suggestionsContainer && !suggestionsContainer.contains(event.target) && event.target !== titleInput) {
-        clearSuggestions();
-    }
-});
-
-function updateYearGoal() {
-    const goal = parseInt(localStorage.getItem('yearGoal')) || 0;
-    const input = document.getElementById('yearGoalInput');
-    if (input && goal > 0) input.value = goal;
-
-    const currentYear = new Date().getFullYear();
-    const count = books.filter(b => {
-    if (!b.isRead || !b.readDate) return false;
-    return parseInt(b.readDate.split('-')[0]) === currentYear;
-}).length;
-    const percent = goal > 0 ? Math.min(Math.round((count / goal) * 100), 100) : 0;
-    
-    // Розрахунок темпу
-    const month = new Date().getMonth() + 1;
-    const expected = (goal / 12) * month;
-    const isOnTrack = count >= expected;
-    const paceText = isOnTrack ? "Ви йдете за графіком! 🎉" : `Потрібно наздогнати: ще ${Math.ceil(expected - count)} кн.`;
-
-    const goalProgressEl = document.getElementById('yearGoalProgress');
-    if (!goalProgressEl) return;
-
-    goalProgressEl.innerHTML = goal > 0 ? `
-        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:6px;">
-            <span>Прочитано: <strong>${count}</strong> з <strong>${goal}</strong></span>
-            <span>${percent}%</span>
-        </div>
-        <div style="background: var(--border-color); border-radius: 8px; overflow: hidden; height: 14px;">
-            <div style="width:${percent}%; height:100%; background:var(--accent-color);"></div>
-        </div>
-        <p style="font-size: 0.75rem; color: ${isOnTrack ? 'var(--success)' : 'var(--danger)'}; margin: 8px 0 0;">${paceText}</p>
-    ` : '<p style="color:var(--text-muted); font-size:0.85rem; margin:0;">Встановіть ціль, щоб відстежувати прогрес</p>';
-}
-
-function saveYearGoal() {
-    const goal = parseInt(document.getElementById('yearGoalInput').value);
-    if (!goal || goal < 1) return;
-    localStorage.setItem('yearGoal', goal);
-    updateYearGoal();
-}
-window.saveYearGoal = saveYearGoal;
-
-function updateCurrentlyReadingBanner() {
-    const current = books.find(b => b.isCurrentlyReading);
-    const banner = document.getElementById('currentlyReadingBanner');
-    if (banner) {
-        if (current) {
-            document.getElementById('currentlyReadingTitle').textContent = current.title;
-            document.getElementById('currentlyReadingAuthor').textContent = current.author;
-            banner.style.display = 'block';
-            banner.onclick = () => openDetailsModal(current.id);
-        } else {
-            banner.style.display = 'none';
-        }
+    .book-list-container {
+        grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+        gap: 11px;
+        padding: 10px 12px 14px;
     }
 }
 
-function toggleReadDate(isChecked) {
-    const container = document.getElementById('readDateContainer');
-    if (container) {
-        container.style.display = isChecked ? 'block' : 'none';
+/* --- Interactive Enhanced Stats --- */
+.stats-subtitle {
+    margin: 2px 0 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.stats-filter-pills {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    scrollbar-width: none;
+}
+
+.stats-filter-pills::-webkit-scrollbar {
+    display: none;
+}
+
+.stats-pill {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stats-pill.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+
+.stat-card.clickable {
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.18s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.stat-card.clickable:hover {
+    transform: translateY(-2px);
+    border-color: rgba(94, 92, 230, 0.55);
+    background: #222226;
+}
+
+.stat-card.clickable::after {
+    content: "›";
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    color: var(--text-muted);
+    font-size: 1rem;
+    opacity: 0.65;
+}
+
+.stat-kpi-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* SVG Progress Rings */
+.ring-widget {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.progress-ring-wrap {
+    position: relative;
+    width: 92px;
+    height: 92px;
+    flex-shrink: 0;
+}
+
+.progress-ring-svg {
+    width: 92px;
+    height: 92px;
+    transform: rotate(-90deg);
+}
+
+.progress-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.1);
+    stroke-width: 8;
+}
+
+.progress-ring-fill {
+    fill: none;
+    stroke: var(--accent-color);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.progress-ring-fill.success {
+    stroke: var(--success);
+}
+
+.progress-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.progress-ring-center small {
+    font-size: 0.64rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.ring-details {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.ring-details p {
+    margin: 0 0 4px;
+    color: var(--text-muted);
+}
+
+.ring-details strong {
+    color: var(--text-main);
+}
+
+/* Segmented Bar for Book Types */
+.segmented-bar {
+    display: flex;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--border-color);
+    margin-bottom: 14px;
+    gap: 2px;
+}
+
+.seg-part {
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.seg-paper { background: #5e5ce6; }
+.seg-ebook { background: #32d74b; }
+.seg-audio { background: #ff9f0a; }
+
+.type-legend-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.type-legend-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.type-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+/* Interactive Rows & Accordions */
+.stat-interactive-row {
+    display: flex;
+    flex-direction: column;
+    padding: 7px 8px;
+    margin: 0 -8px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.stat-interactive-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.stat-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.86rem;
+    margin-bottom: 5px;
+}
+
+.stat-row-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-main);
+}
+
+.stat-row-count {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.stat-bar-track {
+    width: 100%;
+    height: 7px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent-color);
+    transition: width 0.5s ease;
+}
+
+.stat-accordion-box {
+    margin: 6px 0 8px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    display: none;
+}
+
+.stat-accordion-box.open {
+    display: block;
+}
+
+.stat-mini-book {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    border-bottom: 0.5px solid var(--border-color);
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.stat-mini-book:last-child {
+    border-bottom: none;
+}
+
+.stat-mini-book:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.stat-mini-book img {
+    width: 28px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.stat-mini-book-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-mini-book-info strong {
+    display: block;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-mini-book-info span {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Monthly Vertical Chart */
+.stats-year-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.year-chip {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.year-chip.active {
+    background: var(--accent-soft);
+    border-color: var(--accent-color);
+    color: #b8b6ff;
+}
+
+.month-bars-grid {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 115px;
+    padding: 12px 4px 4px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.month-col {
+    flex: 1;
+    min-width: 34px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.month-col-val {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.month-col-bar {
+    width: 100%;
+    max-width: 26px;
+    min-height: 6px;
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(180deg, #7d7aff 0%, var(--accent-color) 100%);
+    transition: height 0.45s ease, filter 0.15s ease;
+}
+
+.month-col:hover .month-col-bar,
+.month-col.active .month-col-bar {
+    filter: brightness(1.25);
+}
+
+.month-col-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.stat-expand-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    border-radius: 9px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.stat-expand-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.stat-book-clickable {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 8px 6px !important;
+    margin: 0 -6px;
+    transition: background-color 0.15s ease;
+}
+
+.stat-book-clickable:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* --- Wave Chart & Collapsible Monthly Block --- */
+#readByMonthCard .month-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#readByMonthCard .month-card-header h4 {
+    margin: 0;
+}
+
+#readByMonthCard.is-collapsed .month-card-header {
+    margin-bottom: 0;
+}
+
+#readByMonthCard.is-collapsed #statsYearTabs,
+#readByMonthCard.is-collapsed #monthChartContainer,
+#readByMonthCard.is-collapsed #statReadByMonth {
+    display: none !important;
+}
+
+#statReadByMonth:not(.open) {
+    display: none;
+}
+
+.card-collapse-btn {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.card-collapse-btn:hover {
+    background: rgba(255, 255, 255, 0.13);
+    color: var(--text-main);
+}
+
+.wave-chart-wrap {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.wave-chart-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+.wave-point-group {
+    cursor: pointer;
+}
+
+.wave-point-group text {
+    user-select: none;
+}
+
+.month-selected-preview {
+    margin: 8px 0 6px;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(94, 92, 230, 0.45);
+    border-radius: 12px;
+}
+
+.month-selected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #b8b6ff;
+    text-transform: capitalize;
+}
+
+.month-preview-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+
+/* --- Partner Status in Details Modal --- */
+.partner-status-box {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-size: 0.84rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.partner-status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.partner-name {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.partner-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+}
+
+.partner-stars {
+    color: #ffca08;
+    letter-spacing: 0.03em;
+}
+
+/* --- Loading State --- */
+.loading-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    animation: libSpin 0.8s linear infinite;
+}
+
+@keyframes libSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* --- Deleted Books Section --- */
+.deleted-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn-back-library {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 7px 12px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.deleted-card {
+    cursor: default;
+}
+
+.deleted-card:hover {
+    transform: none;
+}
+
+.deleted-card img {
+    opacity: 0.65;
+}
+
+.deleted-actions {
+    display: flex;
+    gap: 6px;
+    padding: 0 10px 10px;
+}
+
+.restore-btn,
+.purge-btn {
+    flex: 1;
+    padding: 7px 6px;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.restore-btn {
+    background: rgba(50, 215, 75, 0.15);
+    color: var(--success);
+}
+
+.purge-btn {
+    background: rgba(255, 69, 58, 0.14);
+    color: var(--danger);
+}
+
+/* --- Mobile Polish & Fixes --- */
+.app-section {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.scroll-to-top-btn {
+    bottom: calc(78px + env(safe-area-inset-bottom));
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="url"],
+.modal-content input[type="number"],
+.modal-content input[type="month"],
+.modal-content select {
+    min-height: 42px;
+    -webkit-appearance: none;
+}
+
+@media screen and (max-width: 768px) {
+    /* Забороняємо авто-зум у Safari на iPhone (шрифт >= 16px) */
+    #searchInput,
+    #sortSelect,
+    #publisherFilter,
+    .year-goal-row input,
+    .modal-content input[type="text"],
+    .modal-content input[type="url"],
+    .modal-content input[type="number"],
+    .modal-content input[type="month"],
+    .modal-content select {
+        font-size: 16px;
+    }
+
+    #sortSelect,
+    #publisherFilter {
+        padding: 9px 10px;
     }
 }
-window.toggleReadDate = toggleReadDate; // Робимо функцію глобальною для HTML
 
-// --- Scroll to Top Button Logic ---
-let lastScrollY = window.scrollY;
-function updateScrollToTopVisibility() {
-    if (!scrollToTopBtn) return;
-    
-    const scrollY = window.scrollY || document.documentElement.scrollTop;
-    const detailsModal = document.getElementById('detailsModal');
-    
-    // Перевірка, чи відкрите будь-яке модальне вікно
-    const isModalOpen = (modal && modal.style.display === 'flex') || 
-                        (detailsModal && detailsModal.style.display === 'flex');
-                        
-    // Перевірка, чи фокус зараз на полі вводу (клавіатура відкрита)
-    const isInputFocused = document.activeElement && 
-                           ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
-
-    // Логіка для хедера (ховаємо при скролі вниз, показуємо при скролі вгору)
-    if (header && !isModalOpen) {
-        if (scrollY > lastScrollY && scrollY > 100) {
-            // Скролимо вниз
-            header.classList.add('header-hidden');
-        } else {
-            // Скролимо вгору
-            header.classList.remove('header-hidden');
-        }
+@media screen and (max-width: 480px) {
+    /* Кнопки у видалених книгах одна під одною, щоб не злипались у 2-колонковій сітці */
+    .deleted-actions {
+        flex-direction: column;
+        gap: 6px;
     }
 
-    if (scrollY > 400 && !isModalOpen && !isInputFocused) {
-        scrollToTopBtn.classList.add('show');
-    } else {
-        scrollToTopBtn.classList.remove('show');
+    .restore-btn,
+    .purge-btn {
+        width: 100%;
+        padding: 8px;
     }
-
-    lastScrollY = scrollY;
 }
 
-window.addEventListener('scroll', updateScrollToTopVisibility);
-
-// Приховуємо кнопку, коли користувач починає друкувати
-document.addEventListener('focusin', updateScrollToTopVisibility);
-document.addEventListener('focusout', () => setTimeout(updateScrollToTopVisibility, 100));
-
-if (scrollToTopBtn) {
-    scrollToTopBtn.onclick = () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-}
-
-// Перевіряємо, чи є вже збережене ім'я користувача на цьому телефоні
-let currentUser = localStorage.getItem('library_user_id');
-
-if (!currentUser) {
-    // Якщо немає, запитуємо (спрацює один раз при першому вході)
-    let name = prompt("Введіть ваше ім'я (наприклад: Ігор або Марія):", "");
-    if (!name) name = 'User_' + Math.floor(Math.random() * 1000); // дефолт, якщо скасували
-    
-    currentUser = name.trim();
-    localStorage.setItem('library_user_id', currentUser);
-}
-
-// function totalResetAndFullMigration() {
-//     // 1. Повністю стираємо стару гілку книг у Firebase, де виникло задвоєння
-//     database.ref('books').remove()
-//         .then(() => {
-//             console.log("1. Стару базу книг успішно очищено.");
-
-//             // 2. Беремо оригінальний масив з твого localStorage на телефоні
-//             const localData = localStorage.getItem('myLibraryBooks');
-//             if (!localData) {
-//                 alert("Помилка: Не знайдено localStorage на цьому телефоні! Перевірте, чи зайшли саме з того браузера.");
-//                 return;
-//             }
-
-//             const localBooks = JSON.parse(localData);
-//             const globalBooksUpdate = {};
-//             const userStatsUpdate = {};
-
-//             localBooks.forEach(book => {
-              
-//                 globalBooksUpdate[book.id] = {
-//                     id: book.id,
-//                     title: book.title || '',
-//                     author: book.author || '',
-//                     imageURL: book.imageURL || '',
-//                     pages: parseInt(book.pages) || 0,
-//                     publisher: book.publisher || '',
-//                     type: book.type || 'paper'
-//                 };
-
-//                 // ВРАХОВУЄМО ВСІ ОЦІНКИ ТА ДАТИ: Якщо книга має позначки — готуємо їх для папки "Ігор"
-//                 if (book.isRead || book.rating > 0 || book.isCurrentlyReading || book.readDate || book.inWishlist) {
-//                     userStatsUpdate[book.id] = {
-//                         isRead: book.isRead || false,
-//                         rating: book.rating || 0,
-//                         isCurrentlyReading: book.isCurrentlyReading || false,
-//                         readDate: book.readDate || '',
-//                         inWishlist: book.inWishlist || false
-//                     };
-//                 }
-//             });
-
-//             // 3. Заливаємо чисті книги в спільну гілку
-//             return database.ref('books').set(globalBooksUpdate)
-//                 .then(() => {
-//                     console.log("2. Чисті книги успішно завантажено в спільну базу.");
-                    
-//                     // 4. Перезаписуємо твої особисті оцінки/дати в папку "Ігор"
-//                     return database.ref(`user_data/${currentUser}`).set(userStatsUpdate);
-//                 });
-//         })
-//         .then(() => {
-//             console.log(`3. Усі особисті оцінки та дати успішно відновлено для користувача: ${currentUser}`);
-//             alert("ІДЕАЛЬНО! Базу повністю очищено від дублів, книги залито наново, а твої оцінки, дати та статистика повністю відновлені!");
-//         })
-//         .catch(error => console.error("Помилка повної міграції:", error));
-// }
-
-// // Автоматичний запуск через 2.5 секунди після старту додатка
-// setTimeout(totalResetAndFullMigration, 2500);
-
-// function migrateWishlistToFirebase() {
-//     // 1. Беремо старі дані з твого localStorage на телефоні
-//     const localData = localStorage.getItem('myLibraryBooks');
-    
-//     if (!localData) {
-//         console.warn("У localStorage не знайдено книг для міграції списку бажань.");
-//         alert("Помилка: localStorage порожній на цьому пристрої.");
-//         return;
-//     }
-
-//     const localBooks = JSON.parse(localData);
-//     const wishlistUpdates = {};
-//     let count = 0;
-
-//     localBooks.forEach(book => {
-//         // Якщо книга була в списку бажань, готуємо оновлення для Firebase
-//         if (book.inWishlist === true) {
-//             wishlistUpdates[`${book.id}/inWishlist`] = true;
-//             count++;
-//         }
-//     });
-
-//     if (count > 0) {
-//         console.log(`Знайдено ${count} книг у списку бажань. Переносимо для користувача: ${currentUser}...`);
-        
-//         // 2. Оновлюємо тільки прапорці інтересу всередині папки поточного користувача
-//         database.ref(`user_data/${currentUser}`).update(wishlistUpdates)
-//             .then(() => {
-//                 console.log("Список бажань успішно синхронізовано з хмарою!");
-//                 alert(`Успішно перенесено книг у список бажань: ${count}!`);
-//             })
-//             .catch(error => console.error("Помилка міграції списку бажань:", error));
-//     } else {
-//         alert("У твоєму локальному localStorage не знайдено книг із позначкою списку бажань.");
-//     }
-// }
-
-// // Запускаємо автоматично через 2.5 секунди після завантаження сторінки
-// setTimeout(migrateWishlistToFirebase, 2500);
-
-function shareBookList() {
-    const readBooks = books.filter(b => b.isRead && !b.inWishlist);
-    const unreadBooks = books.filter(b => !b.isRead && !b.inWishlist);
-    const wishlistBooks = books.filter(b => b.inWishlist);
-
-    const renderSection = (title, list, showDate = false) => {
-        if (list.length === 0) return '';
-        return `
-            <h2>${title} (${list.length})</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Назва</th>
-                        <th>Автор</th>
-                        <th>Видавництво</th>
-                        <th>Сторінок</th>
-                        <th>Рейтинг</th>
-                        ${showDate ? '<th>Прочитано</th>' : ''}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${list.map((b, i) => `
-                        <tr>
-                            <td>${i + 1}</td>
-                            <td><strong>${b.title}</strong></td>
-                            <td>${b.author}</td>
-                            <td>${b.publisher || '—'}</td>
-                            <td>${b.pages || '—'}</td>
-                            <td>${b.rating ? '★'.repeat(b.rating) : '—'}</td>
-                            ${showDate ? `<td>${b.readDate ? new Date(b.readDate + '-01').toLocaleDateString('uk-UA', {month: 'long', year: 'numeric'}) : '—'}</td>` : ''}
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>`;
-    };
-
-    const html = `<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <title>Моя бібліотека</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
-        h1 { font-size: 1.8rem; margin-bottom: 4px; }
-        .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
-        h2 { font-size: 1.2rem; margin: 30px 0 10px; border-bottom: 2px solid #8b5cf6; padding-bottom: 6px; color: #8b5cf6; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        th { background: #8b5cf6; color: white; padding: 10px 12px; text-align: left; font-size: 0.85rem; }
-        td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #faf5ff; }
-    </style>
-</head>
-<body>
-    <h1>📚 Моя домашня бібліотека</h1>
-    <p class="subtitle">Згенеровано: ${new Date().toLocaleDateString('uk-UA', {day: 'numeric', month: 'long', year: 'numeric'})} · Всього: ${books.filter(b => !b.inWishlist).length} книг</p>
-    ${renderSection('✅ Прочитані', readBooks, true)}
-    ${renderSection('📖 Непрочитані', unreadBooks)}
-    ${renderSection('❤️ Список бажань', wishlistBooks)}
-</body>
-</html>`;
-
-    const blob = new Blob([html], { type: 'text/html' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `бібліотека_${new Date().toLocaleDateString('uk-UA').replace(/\./g, '-')}.html`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-}
-window.shareBookList = shareBookList;
-
-function shareWishlist() {
-    const wishlistBooks = books.filter(b => b.inWishlist);
-    if (wishlistBooks.length === 0) {
-        alert('Список бажань порожній!');
-        return;
+@media screen and (max-width: 400px) {
+    header {
+        padding: 10px 10px;
+        gap: 6px;
     }
-
-    const html = `<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <title>Список бажань</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px; background: #f9f9f9; }
-        h1 { font-size: 1.6rem; margin-bottom: 4px; }
-        .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-        th { background: #f85149; color: white; padding: 10px 12px; text-align: left; font-size: 0.85rem; }
-        td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #fff5f5; }
-    </style>
-</head>
-<body>
-    <h1>❤️ Список бажань</h1>
-    <p class="subtitle">Згенеровано: ${new Date().toLocaleDateString('uk-UA', {day: 'numeric', month: 'long', year: 'numeric'})} · Книг: ${wishlistBooks.length}</p>
-    <table>
-        <thead>
-            <tr><th>#</th><th>Назва</th><th>Автор</th><th>Видавництво</th><th>Сторінок</th></tr>
-        </thead>
-        <tbody>
-            ${wishlistBooks.map((b, i) => `
-                <tr>
-                    <td>${i + 1}</td>
-                    <td><strong>${b.title}</strong></td>
-                    <td>${b.author}</td>
-                    <td>${b.publisher || '—'}</td>
-                    <td>${b.pages || '—'}</td>
-                </tr>`).join('')}
-        </tbody>
-    </table>
-</body>
-</html>`;
-
-    const blob = new Blob([html], { type: 'text/html' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `wishlist_${new Date().toLocaleDateString('uk-UA').replace(/\./g, '-')}.html`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    .header-actions {
+        gap: 5px;
+    }
+    .header-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+    #authBtn,
+    #openModalBtn {
+        height: 32px;
+        font-size: 0.76rem;
+        padding: 0 9px;
+    }
 }
-window.shareWishlist = shareWishlist;
-// function migrateWifeData() {
-//     const localData = localStorage.getItem('myLibraryBooks');
-    
-//     if (!localData) {
-//         alert('Помилка: localStorage порожній на цьому телефоні!');
-//         return;
-//     }
-
-//     const localBooks = JSON.parse(localData);
-//     const userStatsUpdate = {};
-//     let count = 0;
-
-//     localBooks.forEach(book => {
-//         // Переносимо тільки особисті статуси
-//         if (book.isRead || book.rating > 0 || book.isCurrentlyReading || 
-//             book.readDate || book.inWishlist) {
-//             userStatsUpdate[book.id] = {
-//                 isRead: book.isRead || false,
-//                 rating: book.rating || 0,
-//                 isCurrentlyReading: book.isCurrentlyReading || false,
-//                 readDate: book.readDate || '',
-//                 inWishlist: book.inWishlist || false
-//             };
-//             count++;
-//         }
-//     });
-
-//     if (count === 0) {
-//         alert('Не знайдено жодних особистих даних для міграції.');
-//         return;
-//     }
-
-//     console.log(`Знайдено ${count} книг з особистими даними. Переносимо для: ${currentUser}...`);
-
-//     database.ref(`user_data/${currentUser}`).update(userStatsUpdate)
-//         .then(() => {
-//             alert(`✅ Успішно перенесено ${count} книг для користувача: ${currentUser}!`);
-//         })
-//         .catch(error => {
-//             console.error('Помилка міграції:', error);
-//             alert('Помилка міграції: ' + error.message);
-//         });
-// }
-// window.migrateWifeData = migrateWifeData;
-
-document.addEventListener('DOMContentLoaded', loadBooks);
